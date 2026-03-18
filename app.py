@@ -75,20 +75,21 @@ def _extract_phone(profile: dict) -> str:
     return _safe(first.get("number", "") if isinstance(first, dict) else first)
 
 
-def _lookup_poll(url: str, params: dict, headers: dict, retries: int = 3) -> dict | None:
-    """Call RocketReach lookup; poll up to `retries` times on 202."""
+def _lookup_poll(url: str, params: dict, headers: dict, retries: int = 3) -> tuple[dict | None, str]:
+    """Call RocketReach lookup; poll up to `retries` times on 202.
+    Returns (data, debug_msg)."""
     for attempt in range(retries + 1):
         try:
             r = requests.get(url, params=params, headers=headers, timeout=20)
         except requests.RequestException as exc:
-            raise exc
+            return None, f"Request error: {exc}"
         if r.status_code == 200:
-            return r.json()
+            return r.json(), f"HTTP 200"
         if r.status_code == 202 and attempt < retries:
             time.sleep(3 * (attempt + 1))
             continue
-        return None
-    return None
+        return None, f"HTTP {r.status_code}: {r.text[:200]}"
+    return None, "Max retries on 202"
 
 
 # ---------------------------------------------------------------------------
@@ -98,7 +99,7 @@ def _lookup_poll(url: str, params: dict, headers: dict, retries: int = 3) -> dic
 def _enrich_one(api_key: str, row: dict, mapping: dict) -> dict:
     """
     Enrich a single row. Returns:
-      {email, phone, source, confidence, status, error}
+      {email, phone, source, confidence, status, error, debug}
     Priority:
       1. LinkedIn URL   → person/lookup?li_url=...
       2. Name + Company → person/lookup?name=...&current_employer=...
@@ -116,7 +117,10 @@ def _enrich_one(api_key: str, row: dict, mapping: dict) -> dict:
     state    = g("state")
 
     hdrs = _rr_headers(api_key)
-    result = {"email": "", "phone": "", "source": "", "confidence": "", "status": "not_found"}
+    result = {"email": "", "phone": "", "source": "", "confidence": "", "status": "not_found", "debug": []}
+
+    def _dbg(msg):
+        result["debug"].append(msg)
 
     def _fill(profile: dict, source: str, confidence: str):
         result["email"]      = _extract_email(profile)
@@ -128,20 +132,24 @@ def _enrich_one(api_key: str, row: dict, mapping: dict) -> dict:
     try:
         # --- Priority 1: LinkedIn URL ---
         if linkedin:
-            data = _lookup_poll(f"{RR_BASE}/person/lookup", {"li_url": linkedin}, hdrs)
+            data, dbg = _lookup_poll(f"{RR_BASE}/person/lookup", {"li_url": linkedin}, hdrs)
+            _dbg(f"LinkedIn lookup: {dbg}")
             if data:
                 profile = data.get("profile") or data.get("person") or data
                 if profile and profile.get("id"):
                     _fill(profile, "LinkedIn lookup", "High")
                     return result
+                else:
+                    _dbg(f"LinkedIn: no profile id in response keys={list(data.keys())}")
 
         # --- Priority 2: Name + Company ---
         if name and company:
-            data = _lookup_poll(
+            data, dbg = _lookup_poll(
                 f"{RR_BASE}/person/lookup",
                 {"name": name, "current_employer": company},
                 hdrs,
             )
+            _dbg(f"Name+Company lookup: {dbg}")
             if data:
                 profile = data.get("profile") or data.get("person") or data
                 if profile and profile.get("id"):
@@ -155,19 +163,22 @@ def _enrich_one(api_key: str, row: dict, mapping: dict) -> dict:
                     params={"name": name, "current_employer": company},
                     headers=hdrs, timeout=20,
                 )
+                _dbg(f"Name+Company search: HTTP {sr.status_code}")
                 if sr.status_code == 200:
                     profiles = sr.json().get("profiles", [])
+                    _dbg(f"Name+Company search profiles found: {len(profiles)}")
                     if profiles:
                         pid = profiles[0].get("id")
                         if pid:
-                            data2 = _lookup_poll(f"{RR_BASE}/person/lookup", {"id": pid}, hdrs)
+                            data2, dbg2 = _lookup_poll(f"{RR_BASE}/person/lookup", {"id": pid}, hdrs)
+                            _dbg(f"Name+Company lookup by id: {dbg2}")
                             if data2:
                                 profile = data2.get("profile") or data2.get("person") or data2
                                 if profile and profile.get("id"):
                                     _fill(profile, "Name + Company (search)", "Medium")
                                     return result
-            except requests.RequestException:
-                pass
+            except requests.RequestException as e:
+                _dbg(f"Name+Company search error: {e}")
 
         # --- Priority 3: Name + Location ---
         if name:
@@ -176,7 +187,8 @@ def _enrich_one(api_key: str, row: dict, mapping: dict) -> dict:
                 params["location_city"] = city
             if state:
                 params["location_state"] = state
-            data = _lookup_poll(f"{RR_BASE}/person/lookup", params, hdrs)
+            data, dbg = _lookup_poll(f"{RR_BASE}/person/lookup", params, hdrs)
+            _dbg(f"Name+Location lookup: {dbg}")
             if data:
                 profile = data.get("profile") or data.get("person") or data
                 if profile and profile.get("id"):
@@ -191,19 +203,22 @@ def _enrich_one(api_key: str, row: dict, mapping: dict) -> dict:
                 sr = requests.get(
                     f"{RR_BASE}/person/search", params=s_params, headers=hdrs, timeout=20
                 )
+                _dbg(f"Name+Location search: HTTP {sr.status_code}")
                 if sr.status_code == 200:
                     profiles = sr.json().get("profiles", [])
+                    _dbg(f"Name+Location search profiles found: {len(profiles)}")
                     if profiles:
                         pid = profiles[0].get("id")
                         if pid:
-                            data2 = _lookup_poll(f"{RR_BASE}/person/lookup", {"id": pid}, hdrs)
+                            data2, dbg2 = _lookup_poll(f"{RR_BASE}/person/lookup", {"id": pid}, hdrs)
+                            _dbg(f"Name+Location lookup by id: {dbg2}")
                             if data2:
                                 profile = data2.get("profile") or data2.get("person") or data2
                                 if profile and profile.get("id"):
                                     _fill(profile, "Name search + Location", "Low")
                                     return result
-            except requests.RequestException:
-                pass
+            except requests.RequestException as e:
+                _dbg(f"Name+Location search error: {e}")
 
         # --- Priority 4: Entity / LLC ---
         entity_name = company or name
@@ -214,23 +229,26 @@ def _enrich_one(api_key: str, row: dict, mapping: dict) -> dict:
                     params={"name": entity_name},
                     headers=hdrs, timeout=20,
                 )
+                _dbg(f"Company lookup: HTTP {cr.status_code}")
                 if cr.status_code == 200:
                     co_data = cr.json()
                     co = co_data.get("company") or co_data
                     co_id = co.get("id") if co else None
+                    _dbg(f"Company id: {co_id}")
                     if co_id:
-                        data2 = _lookup_poll(
+                        data2, dbg2 = _lookup_poll(
                             f"{RR_BASE}/person/lookup",
                             {"current_employer_id": co_id},
                             hdrs,
                         )
+                        _dbg(f"Entity person lookup: {dbg2}")
                         if data2:
                             profile = data2.get("profile") or data2.get("person") or data2
                             if profile and profile.get("id"):
                                 _fill(profile, "Entity / Company lookup", "Low")
                                 return result
-            except requests.RequestException:
-                pass
+            except requests.RequestException as e:
+                _dbg(f"Company lookup error: {e}")
 
     except requests.RequestException as exc:
         result["status"] = "error"
@@ -287,6 +305,8 @@ def _run_enrichment(job_id: str, df: pd.DataFrame, mapping: dict, api_key: str):
             _log("error", f"  ✗ Error: {enriched.get('error', 'unknown')}")
         else:
             _log("warn", "  – Not found")
+            for dbg in enriched.get("debug", []):
+                _log("info", f"    {dbg}")
 
         with _jobs_lock:
             _jobs[job_id]["done"] = row_num
