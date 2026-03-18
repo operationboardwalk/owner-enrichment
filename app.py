@@ -22,6 +22,7 @@ _jobs: dict[str, dict] = {}
 _jobs_lock = threading.Lock()
 
 RR_BASE = "https://api.rocketreach.co/api/v2"
+RR_API_KEY_ENV = os.environ.get("RR_API_KEY", "").strip()
 
 ENTITY_KEYWORDS = [
     "LLC", "LP", "LLP", "Inc", "Corp", "Trust", "Fund", "Partners",
@@ -331,6 +332,11 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/config")
+def config():
+    return jsonify({"api_key_configured": bool(RR_API_KEY_ENV)})
+
+
 @app.route("/upload", methods=["POST"])
 def upload():
     if "file" not in request.files:
@@ -371,6 +377,8 @@ def enrich():
 
     if not job_id or job_id not in _jobs:
         return jsonify({"error": "Unknown job_id"}), 400
+    if not api_key:
+        api_key = RR_API_KEY_ENV
     if not api_key:
         return jsonify({"error": "API key required"}), 400
 

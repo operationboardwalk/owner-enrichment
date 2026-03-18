@@ -397,7 +397,7 @@
         <div id="file-name"></div>
       </div>
 
-      <div class="field">
+      <div class="field" id="api-key-field">
         <label for="api-key">RocketReach API Key</label>
         <div class="input-row">
           <input type="password" id="api-key" placeholder="Paste your API key here…" autocomplete="off" />
@@ -511,10 +511,11 @@
   // =========================================================
   // State
   // =========================================================
-  let jobId     = null;
-  let apiKey    = "";
-  let columns   = [];
-  let evtSource = null;
+  let jobId            = null;
+  let apiKey           = "";
+  let columns          = [];
+  let evtSource        = null;
+  let serverKeyReady   = false;  // true when RR_API_KEY is set server-side
 
   // =========================================================
   // Step navigation helpers
@@ -548,7 +549,8 @@
   const btnUpload  = $$("btn-upload");
 
   function checkReady() {
-    btnUpload.disabled = !(fileInput.files.length && apiKeyInp.value.trim());
+    const hasKey = serverKeyReady || !!apiKeyInp.value.trim();
+    btnUpload.disabled = !(fileInput.files.length && hasKey);
   }
 
   dropZone.addEventListener("dragover",  e => { e.preventDefault(); dropZone.classList.add("drag-over"); });
@@ -844,8 +846,21 @@
     el.className = "alert alert-err";
   }
 
-  // Init
-  goToStep(1);
+  // =========================================================
+  // Init — check server config
+  // =========================================================
+  (async () => {
+    try {
+      const res  = await fetch("/config");
+      const data = await res.json();
+      if (data.api_key_configured) {
+        serverKeyReady = true;
+        $$("api-key-field").style.display = "none";
+      }
+    } catch (_) {}
+    goToStep(1);
+    checkReady();
+  })();
 </script>
 </body>
 </html>
