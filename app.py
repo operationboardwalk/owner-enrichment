@@ -92,18 +92,38 @@ def _lookup_poll(url: str, params: dict, headers: dict, retries: int = 3) -> tup
     return None, "Max retries on 202"
 
 
-def _search_post(query: dict, headers: dict) -> tuple[list, str]:
-    """POST /person/search — returns (profiles_list, debug_msg)."""
-    body = {"query": query, "start": 1, "page_size": 3}
+def _search_post(query: dict, headers: dict, page_size: int = 10) -> tuple[list, str]:
+    """POST /person/search — returns (profiles_list, debug_msg). Accepts 200 or 201."""
+    body = {"query": query, "start": 1, "page_size": page_size}
     try:
         r = requests.post(f"{RR_BASE}/person/search", json=body, headers=headers, timeout=20)
     except requests.RequestException as exc:
         return [], f"Request error: {exc}"
-    if r.status_code == 200:
+    if r.status_code in (200, 201):
         data = r.json()
         profiles = data.get("profiles") or data.get("results") or []
-        return profiles, f"HTTP 200, {len(profiles)} profiles"
+        return profiles, f"HTTP {r.status_code}, {len(profiles)} profiles"
     return [], f"HTTP {r.status_code}: {r.text[:200]}"
+
+
+def _best_profile(profiles: list, city: str, state: str) -> dict | None:
+    """Pick the best matching profile from search results by location."""
+    if not profiles:
+        return None
+    if not city and not state:
+        return profiles[0]
+    city_l  = city.lower().strip()
+    state_l = state.lower().strip()
+    # Score each profile by location match
+    def score(p):
+        loc = (p.get("location") or "").lower()
+        c = p.get("city") or ""
+        r = p.get("region") or ""
+        s = 0
+        if city_l  and (city_l  in loc or city_l  in c.lower()):  s += 2
+        if state_l and (state_l in loc or state_l in r.lower()):   s += 1
+        return s
+    return max(profiles, key=score)
 
 
 # ---------------------------------------------------------------------------
@@ -185,20 +205,17 @@ def _enrich_one(api_key: str, row: dict, mapping: dict) -> dict:
                             _fill(profile, "Name + Company (search)", "Medium")
                             return result
 
-        # --- Priority 3: Name + Location (POST search → lookup) ---
+        # --- Priority 3: Name search → pick best by location → lookup ---
         if name:
-            query2: dict = {"name": [name]}
-            if city:
-                query2["location_city"] = [city]
-            if state:
-                query2["location_region"] = [state]
-            profiles2, dbg4 = _search_post(query2, hdrs)
-            _dbg(f"Name+Location search: {dbg4}")
-            if profiles2:
-                pid = profiles2[0].get("id")
+            profiles2, dbg4 = _search_post({"name": [name]}, hdrs, page_size=10)
+            _dbg(f"Name search: {dbg4}")
+            best = _best_profile(profiles2, city, state)
+            if best:
+                pid = best.get("id")
+                _dbg(f"Best match: {best.get('name')} / {best.get('location')} (id={pid})")
                 if pid:
                     data3, dbg5 = _lookup_poll(f"{RR_BASE}/person/lookup", {"id": pid}, hdrs)
-                    _dbg(f"Name+Location lookup by id: {dbg5}")
+                    _dbg(f"Name lookup by id: {dbg5}")
                     if data3:
                         profile = data3.get("profile") or data3.get("person") or data3
                         if profile and profile.get("id"):
