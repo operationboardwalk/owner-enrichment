@@ -8,7 +8,7 @@ import os
 import threading
 import time
 import uuid
-from io import BytesIO
+from io import BytesIO, StringIO
 
 import pandas as pd
 import requests
@@ -356,7 +356,7 @@ def enrich():
         job = _jobs[job_id]
         if job["status"] == "running":
             return jsonify({"error": "Already running"}), 400
-        df = pd.read_json(job["df_json"], orient="records", dtype=str)
+        df = pd.read_json(StringIO(job["df_json"]), orient="records", dtype=str)
         df = df.fillna("")
         job["log"]    = []
         job["results"] = []
