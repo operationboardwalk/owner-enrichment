@@ -37,12 +37,19 @@ try:
 except Exception as e:
     print(f"ERROR: {e}")
 
-# Test name-only search
-print(f"\n--- Person search POST: Christina Ahumada (name+location) ---")
-body2 = {"query": {"name": ["Christina Ahumada"], "location_city": ["Long Beach"], "location_region": ["CA"]}, "start": 1, "page_size": 3}
-try:
-    r2 = requests.post(f"{BASE}/person/search", json=body2, headers=HDRS, timeout=20)
-    print(f"HTTP {r2.status_code}")
-    print(r2.text[:500])
-except Exception as e:
-    print(f"ERROR: {e}")
+# Test name-only search with different location field names
+for fields in [
+    {"name": ["Christina Ahumada"], "location": ["Long Beach, CA"]},
+    {"name": ["Christina Ahumada"], "city": ["Long Beach"], "state": ["CA"]},
+    {"name": ["Christina Ahumada"], "location_city": ["Long Beach"]},
+    {"name": ["Christina Ahumada"]},
+]:
+    label = str(fields)
+    print(f"\n--- POST search: {label} ---")
+    body2 = {"query": fields, "start": 1, "page_size": 3}
+    try:
+        r2 = requests.post(f"{BASE}/person/search", json=body2, headers=HDRS, timeout=20)
+        print(f"HTTP {r2.status_code}")
+        print(r2.text[:400])
+    except Exception as e:
+        print(f"ERROR: {e}")
