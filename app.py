@@ -76,7 +76,7 @@ def _extract_phone(profile: dict) -> str:
 
 
 def _lookup_poll(url: str, params: dict, headers: dict, retries: int = 3) -> tuple[dict | None, str]:
-    """Call RocketReach lookup; poll up to `retries` times on 202.
+    """GET RocketReach lookup; poll up to `retries` times on 202.
     Returns (data, debug_msg)."""
     for attempt in range(retries + 1):
         try:
@@ -84,12 +84,26 @@ def _lookup_poll(url: str, params: dict, headers: dict, retries: int = 3) -> tup
         except requests.RequestException as exc:
             return None, f"Request error: {exc}"
         if r.status_code == 200:
-            return r.json(), f"HTTP 200"
+            return r.json(), "HTTP 200"
         if r.status_code == 202 and attempt < retries:
             time.sleep(3 * (attempt + 1))
             continue
         return None, f"HTTP {r.status_code}: {r.text[:200]}"
     return None, "Max retries on 202"
+
+
+def _search_post(query: dict, headers: dict) -> tuple[list, str]:
+    """POST /person/search — returns (profiles_list, debug_msg)."""
+    body = {"query": query, "start": 1, "page_size": 3}
+    try:
+        r = requests.post(f"{RR_BASE}/person/search", json=body, headers=headers, timeout=20)
+    except requests.RequestException as exc:
+        return [], f"Request error: {exc}"
+    if r.status_code == 200:
+        data = r.json()
+        profiles = data.get("profiles") or data.get("results") or []
+        return profiles, f"HTTP 200, {len(profiles)} profiles"
+    return [], f"HTTP {r.status_code}: {r.text[:200]}"
 
 
 # ---------------------------------------------------------------------------
@@ -142,7 +156,7 @@ def _enrich_one(api_key: str, row: dict, mapping: dict) -> dict:
                 else:
                     _dbg(f"LinkedIn: no profile id in response keys={list(data.keys())}")
 
-        # --- Priority 2: Name + Company ---
+        # --- Priority 2: Name + Company (direct lookup, then search) ---
         if name and company:
             data, dbg = _lookup_poll(
                 f"{RR_BASE}/person/lookup",
@@ -156,69 +170,40 @@ def _enrich_one(api_key: str, row: dict, mapping: dict) -> dict:
                     _fill(profile, "Name + Company", "Medium")
                     return result
 
-            # Fallback: search → lookup
-            try:
-                sr = requests.get(
-                    f"{RR_BASE}/person/search",
-                    params={"name": name, "current_employer": company},
-                    headers=hdrs, timeout=20,
-                )
-                _dbg(f"Name+Company search: HTTP {sr.status_code}")
-                if sr.status_code == 200:
-                    profiles = sr.json().get("profiles", [])
-                    _dbg(f"Name+Company search profiles found: {len(profiles)}")
-                    if profiles:
-                        pid = profiles[0].get("id")
-                        if pid:
-                            data2, dbg2 = _lookup_poll(f"{RR_BASE}/person/lookup", {"id": pid}, hdrs)
-                            _dbg(f"Name+Company lookup by id: {dbg2}")
-                            if data2:
-                                profile = data2.get("profile") or data2.get("person") or data2
-                                if profile and profile.get("id"):
-                                    _fill(profile, "Name + Company (search)", "Medium")
-                                    return result
-            except requests.RequestException as e:
-                _dbg(f"Name+Company search error: {e}")
+            # Fallback: POST search → lookup by id
+            query: dict = {"name": [name], "current_employer": [company]}
+            profiles, dbg2 = _search_post(query, hdrs)
+            _dbg(f"Name+Company search: {dbg2}")
+            if profiles:
+                pid = profiles[0].get("id")
+                if pid:
+                    data2, dbg3 = _lookup_poll(f"{RR_BASE}/person/lookup", {"id": pid}, hdrs)
+                    _dbg(f"Name+Company lookup by id: {dbg3}")
+                    if data2:
+                        profile = data2.get("profile") or data2.get("person") or data2
+                        if profile and profile.get("id"):
+                            _fill(profile, "Name + Company (search)", "Medium")
+                            return result
 
-        # --- Priority 3: Name + Location ---
+        # --- Priority 3: Name + Location (POST search → lookup) ---
         if name:
-            params: dict = {"name": name}
+            query2: dict = {"name": [name]}
             if city:
-                params["location_city"] = city
+                query2["location_city"] = [city]
             if state:
-                params["location_state"] = state
-            data, dbg = _lookup_poll(f"{RR_BASE}/person/lookup", params, hdrs)
-            _dbg(f"Name+Location lookup: {dbg}")
-            if data:
-                profile = data.get("profile") or data.get("person") or data
-                if profile and profile.get("id"):
-                    _fill(profile, "Name + Location", "Low")
-                    return result
-
-            # Fallback: search → lookup
-            try:
-                s_params: dict = {"name": name}
-                if city or state:
-                    s_params["location"] = ", ".join(filter(None, [city, state]))
-                sr = requests.get(
-                    f"{RR_BASE}/person/search", params=s_params, headers=hdrs, timeout=20
-                )
-                _dbg(f"Name+Location search: HTTP {sr.status_code}")
-                if sr.status_code == 200:
-                    profiles = sr.json().get("profiles", [])
-                    _dbg(f"Name+Location search profiles found: {len(profiles)}")
-                    if profiles:
-                        pid = profiles[0].get("id")
-                        if pid:
-                            data2, dbg2 = _lookup_poll(f"{RR_BASE}/person/lookup", {"id": pid}, hdrs)
-                            _dbg(f"Name+Location lookup by id: {dbg2}")
-                            if data2:
-                                profile = data2.get("profile") or data2.get("person") or data2
-                                if profile and profile.get("id"):
-                                    _fill(profile, "Name search + Location", "Low")
-                                    return result
-            except requests.RequestException as e:
-                _dbg(f"Name+Location search error: {e}")
+                query2["location_region"] = [state]
+            profiles2, dbg4 = _search_post(query2, hdrs)
+            _dbg(f"Name+Location search: {dbg4}")
+            if profiles2:
+                pid = profiles2[0].get("id")
+                if pid:
+                    data3, dbg5 = _lookup_poll(f"{RR_BASE}/person/lookup", {"id": pid}, hdrs)
+                    _dbg(f"Name+Location lookup by id: {dbg5}")
+                    if data3:
+                        profile = data3.get("profile") or data3.get("person") or data3
+                        if profile and profile.get("id"):
+                            _fill(profile, "Name + Location", "Low")
+                            return result
 
         # --- Priority 4: Entity / LLC ---
         entity_name = company or name
