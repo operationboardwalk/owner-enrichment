@@ -1,9 +1,5 @@
+flask
+requests
 pandas
 openpyxl
-requests
-beautifulsoup4
-fuzzywuzzy
-python-Levenshtein
-python-dotenv
-tqdm
-googlesearch-python
+xlrd

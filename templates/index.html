@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Owner Enrichment</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #f5f7fa;
+      --surface:  #ffffff;
+      --border:   #e2e8f0;
+      --primary:  #3b82f6;
+      --primary-d:#2563eb;
+      --success:  #22c55e;
+      --warn:     #f59e0b;
+      --danger:   #ef4444;
+      --text:     #1e293b;
+      --muted:    #64748b;
+      --radius:   10px;
+      --shadow:   0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ---- Header ---- */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header .logo { font-size: 1.1rem; font-weight: 700; color: var(--primary); }
+    header .sub  { font-size: .8rem; color: var(--muted); }
+
+    /* ---- Steps nav ---- */
+    .steps-bar {
+      display: flex;
+      justify-content: center;
+      gap: 0;
+      padding: 1.5rem 2rem 0;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-size: .8rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .step-item .dot {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: .75rem; font-weight: 700;
+      background: var(--surface);
+      transition: all .2s;
+      flex-shrink: 0;
+    }
+    .step-item.active .dot  { border-color: var(--primary); color: var(--primary); }
+    .step-item.done .dot    { border-color: var(--success); background: var(--success); color: #fff; }
+    .step-item.active       { color: var(--primary); }
+    .step-connector {
+      flex: 1; height: 2px; background: var(--border);
+      margin: 0 .25rem; align-self: center;
+      max-width: 80px;
+    }
+    .step-connector.done { background: var(--success); }
+
+    /* ---- Main layout ---- */
+    main {
+      max-width: 720px;
+      margin: 1.5rem auto 3rem;
+      padding: 0 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* ---- Card ---- */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: .9rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+    }
+    .card-header h2 {
+      font-size: .95rem;
+      font-weight: 600;
+    }
+    .card-header .badge {
+      margin-left: auto;
+      font-size: .7rem;
+      padding: .2rem .55rem;
+      border-radius: 99px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .card-body { padding: 1.25rem; }
+
+    /* ---- Drop zone ---- */
+    #drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 2.5rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+    }
+    #drop-zone:hover, #drop-zone.drag-over {
+      border-color: var(--primary);
+      background: #eff6ff;
+    }
+    #drop-zone input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    }
+    #drop-zone .icon {
+      font-size: 2.5rem; margin-bottom: .5rem; display: block;
+    }
+    #drop-zone p { color: var(--muted); font-size: .875rem; }
+    #drop-zone strong { color: var(--primary); }
+    #file-name {
+      margin-top: .75rem;
+      font-size: .8rem;
+      color: var(--success);
+      font-weight: 500;
+      display: none;
+    }
+
+    /* ---- Form elements ---- */
+    label {
+      display: block;
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: .35rem;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+
+    input[type=text], input[type=password], select {
+      width: 100%;
+      padding: .55rem .75rem;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      font-size: .9rem;
+      color: var(--text);
+      background: var(--surface);
+      transition: border-color .15s;
+      outline: none;
+    }
+    input[type=text]:focus,
+    input[type=password]:focus,
+    select:focus { border-color: var(--primary); }
+
+    .input-row {
+      display: flex;
+      gap: .5rem;
+      align-items: center;
+    }
+    .input-row input { flex: 1; }
+    .eye-btn {
+      background: none; border: 1px solid var(--border);
+      border-radius: 7px; padding: .5rem .65rem;
+      cursor: pointer; font-size: .85rem; color: var(--muted);
+      transition: border-color .15s;
+    }
+    .eye-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* ---- Mapping grid ---- */
+    .map-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .85rem;
+    }
+    @media (max-width: 520px) { .map-grid { grid-template-columns: 1fr; } }
+    .map-row { }
+    .map-row label {
+      display: flex; align-items: center; gap: .4rem;
+    }
+    .map-row .req { color: var(--danger); font-size: .75rem; }
+
+    /* ---- Buttons ---- */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: .4rem;
+      padding: .6rem 1.25rem;
+      border-radius: 7px;
+      font-size: .875rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background .15s, opacity .15s;
+    }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary  { background: var(--primary);   color: #fff; }
+    .btn-primary:hover:not(:disabled)  { background: var(--primary-d); }
+    .btn-success  { background: var(--success);   color: #fff; }
+    .btn-success:hover:not(:disabled)  { background: #16a34a; }
+    .btn-danger   { background: var(--danger);    color: #fff; }
+    .btn-danger:hover:not(:disabled)   { background: #dc2626; }
+    .btn-outline  {
+      background: transparent;
+      color: var(--primary);
+      border: 1px solid var(--primary);
+    }
+    .btn-outline:hover:not(:disabled) { background: #eff6ff; }
+    .btn-row {
+      display: flex; gap: .65rem; flex-wrap: wrap; margin-top: 1.1rem;
+    }
+
+    /* ---- Progress bar ---- */
+    .progress-wrap {
+      background: var(--bg);
+      border-radius: 99px;
+      height: 8px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+    .progress-bar {
+      height: 100%;
+      border-radius: 99px;
+      background: var(--primary);
+      transition: width .3s ease;
+      width: 0%;
+    }
+    .progress-label {
+      font-size: .8rem;
+      color: var(--muted);
+      text-align: right;
+      margin-top: .25rem;
+      margin-bottom: .75rem;
+    }
+
+    /* ---- Log ---- */
+    #log {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: .85rem 1rem;
+      font-family: "SF Mono", "Fira Code", Menlo, monospace;
+      font-size: .78rem;
+      line-height: 1.6;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+    #log .l-info    { color: #93c5fd; }
+    #log .l-success { color: #86efac; }
+    #log .l-warn    { color: #fcd34d; }
+    #log .l-error   { color: #fca5a5; }
+    #log .l-progress{ color: #64748b; font-size: .7rem; }
+
+    /* ---- Results table ---- */
+    .table-wrap {
+      overflow-x: auto;
+      margin-top: .5rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .82rem;
+    }
+    th {
+      background: var(--bg);
+      padding: .55rem .75rem;
+      text-align: left;
+      font-size: .7rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    td {
+      padding: .5rem .75rem;
+      border-bottom: 1px solid var(--border);
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8fafc; }
+
+    /* ---- Confidence badge ---- */
+    .badge-conf {
+      display: inline-block;
+      padding: .15rem .5rem;
+      border-radius: 99px;
+      font-size: .7rem;
+      font-weight: 700;
+    }
+    .conf-High   { background: #dcfce7; color: #15803d; }
+    .conf-Medium { background: #fef9c3; color: #854d0e; }
+    .conf-Low    { background: #fee2e2; color: #b91c1c; }
+    .conf-empty  { background: var(--bg); color: var(--muted); }
+
+    /* ---- Alert ---- */
+    .alert {
+      padding: .75rem 1rem;
+      border-radius: 7px;
+      font-size: .85rem;
+      display: none;
+      margin-top: .75rem;
+    }
+    .alert-err  { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; display: block; }
+    .alert-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; display: block; }
+
+    /* ---- Section heading ---- */
+    .section-note {
+      font-size: .8rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+
+    /* ---- Hidden ---- */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="logo">&#x26A1; Owner Enrichment</span>
+  <span class="sub">Powered by RocketReach</span>
+</header>
+
+<!-- Steps nav -->
+<div class="steps-bar" id="steps-bar">
+  <div class="step-item active" id="step-dot-1">
+    <div class="dot">1</div>
+    <span>Upload</span>
+  </div>
+  <div class="step-connector" id="step-conn-1"></div>
+  <div class="step-item" id="step-dot-2">
+    <div class="dot">2</div>
+    <span>Map Columns</span>
+  </div>
+  <div class="step-connector" id="step-conn-2"></div>
+  <div class="step-item" id="step-dot-3">
+    <div class="dot">3</div>
+    <span>Enrich</span>
+  </div>
+  <div class="step-connector" id="step-conn-3"></div>
+  <div class="step-item" id="step-dot-4">
+    <div class="dot">4</div>
+    <span>Results</span>
+  </div>
+</div>
+
+<main>
+
+  <!-- ========= STEP 1: Upload ========= -->
+  <div class="card" id="card-upload">
+    <div class="card-header">
+      <span>📂</span>
+      <h2>Step 1 — Upload File & API Key</h2>
+    </div>
+    <div class="card-body">
+
+      <div class="field">
+        <div id="drop-zone">
+          <input type="file" id="file-input" accept=".xlsx,.xls" />
+          <span class="icon">📊</span>
+          <p>Drag &amp; drop your Excel file here<br />
+            or <strong>click to browse</strong></p>
+          <p style="margin-top:.4rem;font-size:.75rem">.xlsx or .xls</p>
+        </div>
+        <div id="file-name"></div>
+      </div>
+
+      <div class="field">
+        <label for="api-key">RocketReach API Key</label>
+        <div class="input-row">
+          <input type="password" id="api-key" placeholder="Paste your API key here…" autocomplete="off" />
+          <button class="eye-btn" id="eye-btn" type="button" title="Toggle visibility">👁</button>
+        </div>
+      </div>
+
+      <div id="upload-error" class="alert"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-upload" disabled>
+          Upload &amp; Continue →
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========= STEP 2: Column Mapping ========= -->
+  <div class="card hidden" id="card-mapping">
+    <div class="card-header">
+      <span>🗂</span>
+      <h2>Step 2 — Map Columns</h2>
+      <span class="badge" id="row-count-badge"></span>
+    </div>
+    <div class="card-body">
+      <p class="section-note">
+        Match your spreadsheet columns to the fields below. Only <strong>Owner Name</strong> is required.
+      </p>
+
+      <div class="map-grid">
+        <div class="map-row field">
+          <label>Owner Name <span class="req">*</span></label>
+          <select id="map-name"></select>
+        </div>
+        <div class="map-row field">
+          <label>Owner Company</label>
+          <select id="map-company"></select>
+        </div>
+        <div class="map-row field">
+          <label>City</label>
+          <select id="map-city"></select>
+        </div>
+        <div class="map-row field">
+          <label>State</label>
+          <select id="map-state"></select>
+        </div>
+        <div class="map-row field" style="grid-column: span 2">
+          <label>LinkedIn URL</label>
+          <select id="map-linkedin"></select>
+        </div>
+      </div>
+
+      <div id="mapping-error" class="alert"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-outline" id="btn-back-1">← Back</button>
+        <button class="btn btn-primary" id="btn-start-enrich">Start Enrichment →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========= STEP 3: Progress ========= -->
+  <div class="card hidden" id="card-progress">
+    <div class="card-header">
+      <span>⚡</span>
+      <h2>Step 3 — Enriching…</h2>
+      <span class="badge" id="progress-badge">0 / 0</span>
+    </div>
+    <div class="card-body">
+      <div class="progress-wrap">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+      <div class="progress-label" id="progress-label">Starting…</div>
+
+      <div id="log"><span class="l-info">Waiting to start…</span></div>
+
+      <div class="btn-row">
+        <button class="btn btn-danger" id="btn-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========= STEP 4: Results ========= -->
+  <div class="card hidden" id="card-results">
+    <div class="card-header">
+      <span>✅</span>
+      <h2>Step 4 — Results</h2>
+      <span class="badge" id="results-badge"></span>
+    </div>
+    <div class="card-body">
+      <div class="table-wrap" id="results-wrap">
+        <table id="results-table">
+          <thead>
+            <tr id="results-thead"></tr>
+          </thead>
+          <tbody id="results-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="btn-row" style="margin-top:1.25rem">
+        <button class="btn btn-success" id="btn-download">⬇ Download Enriched Excel</button>
+        <button class="btn btn-outline" id="btn-restart">Start Over</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // =========================================================
+  // State
+  // =========================================================
+  let jobId     = null;
+  let apiKey    = "";
+  let columns   = [];
+  let evtSource = null;
+
+  // =========================================================
+  // Step navigation helpers
+  // =========================================================
+  const STEPS = [null, "card-upload", "card-mapping", "card-progress", "card-results"];
+
+  function goToStep(n) {
+    STEPS.forEach((id, i) => {
+      if (!id) return;
+      const card = $$(id);
+      card.classList.toggle("hidden", i !== n);
+    });
+    // Update step dots
+    for (let i = 1; i <= 4; i++) {
+      const dot  = $$(`step-dot-${i}`);
+      const conn = $$(`step-conn-${i}`);
+      dot.classList.toggle("active", i === n);
+      dot.classList.toggle("done",   i < n);
+      if (conn) conn.classList.toggle("done", i < n);
+    }
+  }
+
+  function $$(id) { return document.getElementById(id); }
+
+  // =========================================================
+  // Step 1 — Upload
+  // =========================================================
+  const dropZone   = $$("drop-zone");
+  const fileInput  = $$("file-input");
+  const apiKeyInp  = $$("api-key");
+  const btnUpload  = $$("btn-upload");
+
+  function checkReady() {
+    btnUpload.disabled = !(fileInput.files.length && apiKeyInp.value.trim());
+  }
+
+  dropZone.addEventListener("dragover",  e => { e.preventDefault(); dropZone.classList.add("drag-over"); });
+  dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
+  dropZone.addEventListener("drop", e => {
+    e.preventDefault();
+    dropZone.classList.remove("drag-over");
+    if (e.dataTransfer.files.length) {
+      fileInput.files = e.dataTransfer.files;
+      showFileName(fileInput.files[0].name);
+      checkReady();
+    }
+  });
+
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files.length) showFileName(fileInput.files[0].name);
+    checkReady();
+  });
+
+  apiKeyInp.addEventListener("input", checkReady);
+
+  function showFileName(name) {
+    const fn = $$("file-name");
+    fn.textContent = "📄 " + name;
+    fn.style.display = "block";
+  }
+
+  $$("eye-btn").addEventListener("click", () => {
+    apiKeyInp.type = apiKeyInp.type === "password" ? "text" : "password";
+  });
+
+  btnUpload.addEventListener("click", async () => {
+    const err = $$("upload-error");
+    err.className = "alert";
+
+    apiKey = apiKeyInp.value.trim();
+    const fd = new FormData();
+    fd.append("file", fileInput.files[0]);
+
+    btnUpload.disabled = true;
+    btnUpload.textContent = "Uploading…";
+
+    try {
+      const res = await fetch("/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        showErr(err, data.error || "Upload failed");
+        btnUpload.disabled = false;
+        btnUpload.textContent = "Upload & Continue →";
+        return;
+      }
+      jobId   = data.job_id;
+      columns = data.columns;
+      $$("row-count-badge").textContent = `${data.row_count} rows`;
+      buildMappingDropdowns(columns);
+      goToStep(2);
+    } catch (e) {
+      showErr(err, "Network error: " + e.message);
+      btnUpload.disabled = false;
+      btnUpload.textContent = "Upload & Continue →";
+    }
+  });
+
+  // =========================================================
+  // Step 2 — Column Mapping
+  // =========================================================
+  const MAP_FIELDS = [
+    { id: "map-name",    label: "Owner Name",    hints: ["owner","name","owner name","property owner"] },
+    { id: "map-company", label: "Company",       hints: ["company","employer","business","llc","entity"] },
+    { id: "map-city",    label: "City",          hints: ["city","municipality","town"] },
+    { id: "map-state",   label: "State",         hints: ["state","province"] },
+    { id: "map-linkedin",label: "LinkedIn URL",  hints: ["linkedin","li_url","li url","profile url"] },
+  ];
+
+  function buildMappingDropdowns(cols) {
+    MAP_FIELDS.forEach(field => {
+      const sel = $$(field.id);
+      sel.innerHTML = "";
+      // None option
+      const none = document.createElement("option");
+      none.value = ""; none.textContent = "— None / Skip —";
+      sel.appendChild(none);
+      cols.forEach(col => {
+        const opt = document.createElement("option");
+        opt.value = col; opt.textContent = col;
+        sel.appendChild(opt);
+      });
+      // Auto-select best hint
+      const colsLower = cols.map(c => c.toLowerCase().trim());
+      let matched = null;
+      for (const hint of field.hints) {
+        const idx = colsLower.findIndex(c => c === hint);
+        if (idx >= 0) { matched = cols[idx]; break; }
+      }
+      if (!matched) {
+        for (const hint of field.hints) {
+          const idx = colsLower.findIndex(c => c.includes(hint));
+          if (idx >= 0) { matched = cols[idx]; break; }
+        }
+      }
+      if (matched) sel.value = matched;
+    });
+  }
+
+  $$("btn-back-1").addEventListener("click", () => goToStep(1));
+
+  $$("btn-start-enrich").addEventListener("click", async () => {
+    const err = $$("mapping-error");
+    err.className = "alert";
+
+    const nameVal = $$("map-name").value;
+    if (!nameVal) {
+      showErr(err, "Owner Name column is required.");
+      return;
+    }
+
+    const mapping = {
+      name:    $$("map-name").value    || null,
+      company: $$("map-company").value || null,
+      city:    $$("map-city").value    || null,
+      state:   $$("map-state").value   || null,
+      linkedin:$$("map-linkedin").value|| null,
+    };
+    // Remove nulls
+    Object.keys(mapping).forEach(k => { if (!mapping[k]) delete mapping[k]; });
+
+    try {
+      const res = await fetch("/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job_id: jobId, api_key: apiKey, mapping }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        showErr(err, data.error || "Failed to start enrichment");
+        return;
+      }
+      goToStep(3);
+      startProgressStream();
+    } catch (e) {
+      showErr(err, "Network error: " + e.message);
+    }
+  });
+
+  // =========================================================
+  // Step 3 — Progress Stream
+  // =========================================================
+  function startProgressStream() {
+    const log  = $$("log");
+    log.innerHTML = "";
+    $$("progress-bar").style.width = "0%";
+    $$("progress-label").textContent = "Starting…";
+    $$("progress-badge").textContent = "0 / 0";
+
+    if (evtSource) evtSource.close();
+    evtSource = new EventSource(`/stream/${jobId}`);
+
+    evtSource.onmessage = e => {
+      const d = JSON.parse(e.data);
+
+      if (d.type === "progress") {
+        const pct = d.total ? Math.round((d.done / d.total) * 100) : 0;
+        $$("progress-bar").style.width = pct + "%";
+        $$("progress-label").textContent = `${d.done} of ${d.total} rows (${pct}%)`;
+        $$("progress-badge").textContent = `${d.done} / ${d.total}`;
+
+        if (d.status === "complete") {
+          evtSource.close();
+          loadResults();
+        }
+        if (d.status === "cancelled") {
+          evtSource.close();
+          appendLog("warn", "Enrichment cancelled.");
+        }
+        return;
+      }
+
+      // Log lines
+      const cls = {
+        info: "l-info", success: "l-success",
+        warn: "l-warn",  error: "l-error",
+      }[d.type] || "l-info";
+
+      appendLog(d.type, d.msg);
+    };
+
+    evtSource.onerror = () => {
+      appendLog("error", "Stream disconnected.");
+      evtSource.close();
+    };
+  }
+
+  function appendLog(type, msg) {
+    const log = $$("log");
+    const cls = { info:"l-info", success:"l-success", warn:"l-warn", error:"l-error" }[type] || "l-info";
+    const span = document.createElement("span");
+    span.className = cls;
+    span.textContent = msg;
+    log.appendChild(span);
+    log.appendChild(document.createElement("br"));
+    log.scrollTop = log.scrollHeight;
+  }
+
+  $$("btn-cancel").addEventListener("click", async () => {
+    await fetch(`/cancel/${jobId}`, { method: "POST" });
+    if (evtSource) evtSource.close();
+    appendLog("warn", "Cancellation requested…");
+  });
+
+  // =========================================================
+  // Step 4 — Results
+  // =========================================================
+  async function loadResults() {
+    try {
+      const res = await fetch(`/results/${jobId}`);
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        appendLog("error", "Could not load results: " + (data.error || "unknown"));
+        return;
+      }
+      renderResults(data.results);
+      goToStep(4);
+    } catch (e) {
+      appendLog("error", "Network error loading results: " + e.message);
+    }
+  }
+
+  function renderResults(rows) {
+    if (!rows || !rows.length) return;
+
+    // Build header: original cols + enrichment cols
+    const enrichCols = ["__email","__phone","__source","__confidence"];
+    const enrichLabels = { __email:"Email", __phone:"Phone", __source:"Source", __confidence:"Confidence" };
+
+    // Show a limited set of original cols to keep table readable
+    const origKeys = Object.keys(rows[0]).filter(k => !k.startsWith("__"));
+    const displayOrig = origKeys.slice(0, 5); // show up to 5 original cols
+
+    const thead = $$("results-thead");
+    thead.innerHTML = "";
+    [...displayOrig, ...enrichCols].forEach(col => {
+      const th = document.createElement("th");
+      th.textContent = enrichLabels[col] || col;
+      thead.appendChild(th);
+    });
+
+    const tbody = $$("results-tbody");
+    tbody.innerHTML = "";
+
+    let found = 0, total = rows.length;
+
+    rows.forEach(row => {
+      const tr = document.createElement("tr");
+      [...displayOrig, ...enrichCols].forEach(col => {
+        const td = document.createElement("td");
+        const val = row[col] ?? "";
+        if (col === "__confidence" && val) {
+          td.innerHTML = `<span class="badge-conf conf-${val}">${val}</span>`;
+        } else {
+          td.textContent = val;
+          td.title = val;
+        }
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+      if (row["__email"] || row["__phone"]) found++;
+    });
+
+    $$("results-badge").textContent = `${found} found / ${total} total`;
+  }
+
+  $$("btn-download").addEventListener("click", () => {
+    window.location = `/download/${jobId}`;
+  });
+
+  $$("btn-restart").addEventListener("click", () => {
+    if (evtSource) evtSource.close();
+    jobId = null; apiKey = ""; columns = [];
+    fileInput.value = "";
+    $$("file-name").style.display = "none";
+    apiKeyInp.value = "";
+    btnUpload.disabled = true;
+    btnUpload.textContent = "Upload & Continue →";
+    $$("upload-error").className = "alert";
+    goToStep(1);
+  });
+
+  // =========================================================
+  // Util
+  // =========================================================
+  function showErr(el, msg) {
+    el.textContent = "⚠ " + msg;
+    el.className = "alert alert-err";
+  }
+
+  // Init
+  goToStep(1);
+</script>
+</body>
+</html>
