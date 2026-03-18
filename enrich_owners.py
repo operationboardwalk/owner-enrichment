@@ -1,5 +1,5 @@
 # ---- API KEYS —  ----
-ROCKETREACH_API_KEY = "41be71k023d9b69d7030ce7be3e29dee112e8df"
+ROCKETREACH_API_KEY = "PASTE_YOUR_KEY"
 # -------------------------------------------
 
 """
