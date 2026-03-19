@@ -27,9 +27,14 @@ import ai_analyst
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger("boardwalk.main")
 
-AGENT_PASSWORD = os.environ.get("AGENT_PASSWORD", "")
+_PASSWORD_FILE = Path(__file__).parent / "agent_password.txt"
+if _PASSWORD_FILE.exists():
+    AGENT_PASSWORD = _PASSWORD_FILE.read_text().strip()
+else:
+    AGENT_PASSWORD = os.environ.get("AGENT_PASSWORD", "")
+
 if not AGENT_PASSWORD:
-    logger.warning("AGENT_PASSWORD not set — app is unprotected! Set it before exposing to the internet.")
+    logger.warning("No password set — app is unprotected! Create agent_password.txt with your password.")
 
 app = FastAPI(title="Boardwalk Troubleshooting Agent", version="1.0.0")
 app.add_middleware(SessionMiddleware, secret_key=os.environ.get("SESSION_SECRET", secrets.token_hex(32)))
