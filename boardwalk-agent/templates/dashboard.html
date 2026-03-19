@@ -189,11 +189,14 @@
 
 <header>
   <h1>🛠 Boardwalk <span>Troubleshooting</span> Agent</h1>
-  {% if setup_complete %}
-    <span class="pill pill-ok">● Live</span>
-  {% else %}
-    <span class="pill pill-setup">Setup Required</span>
-  {% endif %}
+  <div style="display:flex;align-items:center;gap:12px">
+    {% if setup_complete %}
+      <span class="pill pill-ok">● Live</span>
+    {% else %}
+      <span class="pill pill-setup">Setup Required</span>
+    {% endif %}
+    <a href="/logout" style="font-size:0.78rem;color:var(--muted);text-decoration:none" title="Sign out">Sign out</a>
+  </div>
 </header>
 
 <main>

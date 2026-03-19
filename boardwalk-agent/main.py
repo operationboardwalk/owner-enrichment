@@ -7,13 +7,16 @@ Run with:
 
 import json
 import logging
+import os
+import secrets
 import requests as _requests
 from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
 
 import config as cfg_module
 import diagnostics
@@ -24,8 +27,26 @@ import ai_analyst
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger("boardwalk.main")
 
+AGENT_PASSWORD = os.environ.get("AGENT_PASSWORD", "")
+if not AGENT_PASSWORD:
+    logger.warning("AGENT_PASSWORD not set — app is unprotected! Set it before exposing to the internet.")
+
 app = FastAPI(title="Boardwalk Troubleshooting Agent", version="1.0.0")
+app.add_middleware(SessionMiddleware, secret_key=os.environ.get("SESSION_SECRET", secrets.token_hex(32)))
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
+
+def _is_authenticated(request: Request) -> bool:
+    """Return True if the request has a valid session or no password is set."""
+    if not AGENT_PASSWORD:
+        return True
+    return request.session.get("authenticated") is True
+
+
+def _require_auth(request: Request):
+    """Raise 401 if not authenticated (for API routes)."""
+    if not _is_authenticated(request):
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -51,8 +72,33 @@ def on_shutdown():
 # Web pages
 # ──────────────────────────────────────────────────────────────────────────────
 
+@app.get("/login", response_class=HTMLResponse)
+def login_page(request: Request, error: str = ""):
+    if _is_authenticated(request):
+        return RedirectResponse("/", status_code=302)
+    return templates.TemplateResponse("login.html", {"request": request, "error": error})
+
+
+@app.post("/login")
+async def login_submit(request: Request):
+    form = await request.form()
+    password = form.get("password", "")
+    if AGENT_PASSWORD and password == AGENT_PASSWORD:
+        request.session["authenticated"] = True
+        return RedirectResponse("/", status_code=302)
+    return templates.TemplateResponse("login.html", {"request": request, "error": "Incorrect password"}, status_code=401)
+
+
+@app.get("/logout")
+def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse("/login", status_code=302)
+
+
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request):
+    if not _is_authenticated(request):
+        return RedirectResponse("/login", status_code=302)
     cfg = cfg_module.load()
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
@@ -65,7 +111,8 @@ def dashboard(request: Request):
 # ──────────────────────────────────────────────────────────────────────────────
 
 @app.get("/api/config")
-def get_config():
+def get_config(request: Request):
+    _require_auth(request)
     cfg = cfg_module.load()
     # Mask sensitive values for display
     safe = {k: ("***" if "key" in k.lower() or "token" in k.lower() or "password" in k.lower() else v)
@@ -76,6 +123,7 @@ def get_config():
 
 @app.post("/api/config")
 async def save_config(request: Request):
+    _require_auth(request)
     data = await request.json()
     cfg = cfg_module.update(data)
     # Restart scheduler with new interval if needed
@@ -85,15 +133,17 @@ async def save_config(request: Request):
 
 
 @app.get("/api/test-ssh")
-def test_ssh():
+def test_ssh(request: Request):
+    _require_auth(request)
     cfg = cfg_module.load()
     result = diagnostics.check_ssh_connectivity(cfg)
     return result
 
 
 @app.get("/api/discover-droplets")
-def discover_droplets():
+def discover_droplets(request: Request):
     """List Digital Ocean droplets using the configured API token."""
+    _require_auth(request)
     cfg = cfg_module.load()
     token = cfg.get("do_api_token", "")
     if not token:
@@ -121,8 +171,9 @@ def discover_droplets():
 
 
 @app.get("/api/discover-boardwalk-paths")
-def discover_boardwalk_paths():
+def discover_boardwalk_paths(request: Request):
     """SSH into the droplet and look for boardwalk-related directories."""
+    _require_auth(request)
     cfg = cfg_module.load()
     from ssh_client import run_ssh, SSHError
     try:
@@ -148,8 +199,9 @@ find /root /home /app /opt /srv -maxdepth 3 \
 # ──────────────────────────────────────────────────────────────────────────────
 
 @app.get("/api/status")
-def get_status():
+def get_status(request: Request):
     """Return the most recent diagnostic results (from scheduler cache)."""
+    _require_auth(request)
     status = scheduler.load_last_status()
     cfg = cfg_module.load()
     return {
@@ -160,8 +212,9 @@ def get_status():
 
 
 @app.post("/api/diagnose")
-def run_diagnose():
+def run_diagnose(request: Request):
     """Trigger a fresh full diagnostic run right now."""
+    _require_auth(request)
     results = scheduler.run_health_check()
     return {
         "last_run": scheduler.get_last_run(),
@@ -174,14 +227,16 @@ def run_diagnose():
 # ──────────────────────────────────────────────────────────────────────────────
 
 @app.post("/api/fix/{issue_id}")
-def apply_fix(issue_id: str):
+def apply_fix(issue_id: str, request: Request):
+    _require_auth(request)
     cfg = cfg_module.load()
     result = fixes.apply_fix(issue_id, cfg)
     return result
 
 
 @app.post("/api/restart")
-def restart_boardwalk():
+def restart_boardwalk(request: Request):
+    _require_auth(request)
     cfg = cfg_module.load()
     result = fixes.fix_restart_boardwalk(cfg)
     return result
@@ -189,6 +244,7 @@ def restart_boardwalk():
 
 @app.post("/api/nudge")
 async def nudge_boardwalk(request: Request):
+    _require_auth(request)
     data = await request.json()
     message = data.get("message", "")
     cfg = cfg_module.load()
@@ -197,7 +253,8 @@ async def nudge_boardwalk(request: Request):
 
 
 @app.post("/api/fix/memory/reinit")
-def reinit_memory():
+def reinit_memory(request: Request):
+    _require_auth(request)
     cfg = cfg_module.load()
     result = fixes.fix_memory_files(cfg=cfg, reinit=True)
     return result
@@ -205,6 +262,7 @@ def reinit_memory():
 
 @app.post("/api/apply-ai-fix")
 async def apply_ai_fix_endpoint(request: Request):
+    _require_auth(request)
     data = await request.json()
     command = data.get("command", "")
     description = data.get("description", "AI-suggested fix")
@@ -226,6 +284,7 @@ async def analyze_problem(request: Request):
     Body: { "problem": "describe what's wrong" }
     Returns AI diagnosis + suggested fixes.
     """
+    _require_auth(request)
     data = await request.json()
     problem = data.get("problem", "").strip()
     if not problem:
@@ -258,6 +317,7 @@ async def analyze_problem(request: Request):
 @app.post("/api/verify-fix")
 async def verify_fix_endpoint(request: Request):
     """After applying a fix, ask AI if it worked."""
+    _require_auth(request)
     data = await request.json()
     fix_description = data.get("fix_description", "")
     cfg = cfg_module.load()
@@ -272,6 +332,7 @@ async def verify_fix_endpoint(request: Request):
 @app.post("/api/chat")
 async def chat(request: Request):
     """Quick AI chat without full context collection."""
+    _require_auth(request)
     data = await request.json()
     question = data.get("question", "").strip()
     if not question:
@@ -289,7 +350,8 @@ async def chat(request: Request):
 # ──────────────────────────────────────────────────────────────────────────────
 
 @app.get("/api/history")
-def get_history():
+def get_history(request: Request):
+    _require_auth(request)
     return fixes.load_history()
 
 
