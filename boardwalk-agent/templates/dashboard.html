@@ -541,6 +541,7 @@ async function loadConfig() {
     const el = document.getElementById(k);
     if (!el) return;
     if (el.type === 'checkbox') el.checked = !!cfg[k];
+    else if (cfg[k] === '***') { el.value = ''; el.placeholder = '(saved — leave blank to keep)'; }
     else el.value = cfg[k] !== undefined ? cfg[k] : '';
   });
   const autoFix = document.getElementById('auto_fix_critical');
@@ -554,6 +555,7 @@ async function saveConfig() {
     if (!el) return;
     if (el.type === 'number') payload[k] = parseFloat(el.value) || 0;
     else if (el.type === 'checkbox') payload[k] = el.checked;
+    else if (el.value === '***') return;  // skip masked placeholders — don't overwrite saved secrets
     else payload[k] = el.value;
   });
   payload.auto_fix_critical = document.getElementById('auto_fix_critical').checked;
