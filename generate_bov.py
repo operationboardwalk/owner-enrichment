@@ -199,6 +199,13 @@ def compute_metrics(data: dict):
     if caps:
         m["avg_comp_cap_rate"] = round(sum(caps) / len(caps), 2)
 
+    # Teaser fallback: use submarket benchmarks when no specific sale comps exist.
+    market = data.get("market", {}) or {}
+    if "avg_comp_price_per_unit" not in m and market.get("avg_price_per_unit"):
+        m["avg_comp_price_per_unit"] = round(market["avg_price_per_unit"])
+    if "avg_comp_cap_rate" not in m and market.get("avg_cap_rate"):
+        m["avg_comp_cap_rate"] = round(market["avg_cap_rate"], 2)
+
     # Implied value: prefer cap-rate on current NOI, else $/unit on unit count.
     noi = sp.get("current_noi")
     if noi and m.get("avg_comp_cap_rate"):

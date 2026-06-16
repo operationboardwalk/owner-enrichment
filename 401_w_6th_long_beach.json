@@ -1,0 +1,98 @@
+{
+  "report_title": "Broker Opinion of Value — Teaser",
+  "overview_summary": "401 W 6th Street is a 52-unit, four-story elevator apartment building in the heart of Downtown Long Beach (built 1974). The location is a standout: a Walk Score of 87, three blocks from Pine Avenue, and roughly a third of a mile from the Metro A Line — in a submarket riding a multi-billion-dollar development wave and benefitting from California's most landlord-favorable regulatory posture among major LA-area cities (no local rent control).",
+  "rent_summary": "Downtown Long Beach is the city's strongest rent submarket, with a median asking rent around $2,460 — about 26% above the national average. The figures below reflect current area asking rents by unit type and at competing communities.",
+  "sale_summary": "There is no free public feed of verified closed sales, so the figures below are submarket benchmarks drawn from published 2024–2025 Long Beach 5+ unit data, not a specific named transaction. We'd refine these with verified comps before any formal opinion of value.",
+  "location_summary": "Walkability and transit access are leading drivers of renter demand downtown. This location scores as Very Walkable and sits within walking distance of the Metro A Line, Pine Avenue, and the waterfront.",
+  "contact_cta": "Curious what 401 W 6th could trade for in today's market?",
+
+  "subject_property": {
+    "name": "401 W 6th Street",
+    "address": "401 W 6th St",
+    "city": "Long Beach",
+    "state": "CA",
+    "zip": "90802",
+    "units": 52,
+    "year_built": 1974,
+    "lat": 33.7711,
+    "lng": -118.1928,
+    "unit_mix": [
+      { "type": "Studio", "count": 18, "avg_sf": 450, "market_rent": 1700 },
+      { "type": "1 Bed",  "count": 28, "avg_sf": 600, "market_rent": 2150 },
+      { "type": "2 Bed",  "count": 6,  "avg_sf": 850, "market_rent": 2600 }
+    ]
+  },
+
+  "market": {
+    "avg_price_per_unit": 250000,
+    "avg_cap_rate": 5.1,
+    "_note": "Submarket benchmark from published Long Beach 5+ unit data (2024 avg ~$247K/unit; B-class cap ~4.9%, C-class ~5.4%). Not a verified comp."
+  },
+
+  "rent_comps": [
+    { "name": "Downtown LB submarket median", "address": "Downtown Long Beach, CA", "unit_type": "All", "avg_rent": 2460 },
+    { "name": "Burano",          "address": "100 W 5th St, Long Beach, CA",    "unit_type": "1 Bed", "avg_rent": 2600, "lat": 33.7693, "lng": -118.1922 },
+    { "name": "Aster",           "address": "150 W 3rd St, Long Beach, CA",    "unit_type": "1 Bed", "avg_rent": 2400, "lat": 33.7676, "lng": -118.1915 },
+    { "name": "Edison Long Beach","address": "100 Long Beach Blvd, Long Beach, CA", "unit_type": "1 Bed", "avg_rent": 2250, "lat": 33.7702, "lng": -118.1890 }
+  ],
+
+  "rent_trend": [
+    { "period": "2021", "rent": 2050 },
+    { "period": "2022", "rent": 2200 },
+    { "period": "2023", "rent": 2320 },
+    { "period": "2024", "rent": 2400 },
+    { "period": "2025", "rent": 2460 }
+  ],
+
+  "investment_highlights": [
+    "Walker's-paradise-adjacent location — Walk Score 87 (Very Walkable), ~0.3 mi to the Metro A Line at Pacific Ave Station and three blocks to Pine Avenue's dining and nightlife.",
+    "No local rent control — Long Beach repealed its local ordinance in 2019 and relies solely on California's AB 1482, giving owners more rent-growth flexibility than nearby City of Los Angeles assets.",
+    "Riding a $10B+ downtown development wave: LA County's largest waterfront amphitheater (opening 2026), the $200M Alexan West End (largest residential project in the city), and 5,200+ units approved 2023–2025.",
+    "52 units offers professional, scalable ownership with a deep private-capital and 1031 buyer pool in a supply-constrained infill submarket.",
+    "Classic 1974 vintage in the city's top rent submarket implies a likely gap between in-place and market rents — a clear value-add lever on turnover."
+  ],
+
+  "neighborhood": {
+    "developments": [
+      "Long Beach waterfront amphitheater — the largest in LA County — operated by Legends Global, opening 2026.",
+      "Alexan West End (Trammell Crow): $200M funded, the largest residential development proposed in Long Beach, with initial occupancies targeted for 2026.",
+      "Downtown Shoreline Vision Plan: marina expansion plus pedestrian and bike connectivity improvements along the waterfront.",
+      "Citywide momentum: 5,200+ new housing units approved between 2023 and 2025."
+    ],
+    "amenities": [
+      "Metro A Line — Pacific Ave Station (0.3 mi)", "Pine Avenue dining & nightlife", "The Promenade",
+      "Long Beach waterfront & beach", "East Village Arts District", "Shoreline Village",
+      "Long Beach Convention Center", "Aquarium of the Pacific", "Governor George Deukmejian Courthouse"
+    ]
+  },
+
+  "regulations": [
+    { "title": "No Local Rent Control", "sentiment": "positive",
+      "impact": "Long Beach repealed its local Tenant Relocation Assistance Ordinance in December 2019 and has no local rent-stabilization board. Compared with the City of Los Angeles, this is a meaningful relative advantage for rent growth and value." },
+    { "title": "California AB 1482 (Statewide Cap)", "sentiment": "neutral",
+      "impact": "Covered units are limited to 5% + local CPI, capped at 10%. For increases effective Aug 1, 2025–Jul 31, 2026 the Long Beach-area maximum is 8%. Provides a predictable growth floor that applies to competing product as well." },
+    { "title": "Just Cause for Eviction", "sentiment": "neutral",
+      "impact": "Long Beach follows AB 1482's just-cause provisions; relocation assistance may apply for no-fault terminations. Factor turnover timing into any aggressive reposition plan." },
+    { "title": "Verify Occupancy Designation", "sentiment": "risk",
+      "impact": "Some listings reference operation under the Housing for Older Persons Act (55+). Confirm the property's actual designation — it materially affects the tenant pool, marketing, and applicable protections." }
+  ],
+
+  "walk_scores": {
+    "walk": 87,
+    "walk_desc": "Very Walkable — most errands on foot",
+    "transit": 64,
+    "transit_desc": "Good transit — near Metro A Line (approx.)",
+    "bike": 70,
+    "bike_desc": "Very bikeable (approx.)"
+  },
+
+  "broker": {
+    "name": "Hannah Maile",
+    "company": "Operation Boardwalk",
+    "phone": "",
+    "email": "hannah.maile88@gmail.com",
+    "license": ""
+  },
+
+  "disclaimer": "This teaser Broker Opinion of Value is provided for informational and discussion purposes only and does not constitute an appraisal, an offer to buy or sell, or a guarantee of value. It was prepared without access to the property's actual rent roll or operating statements; unit mix, market rents, and value benchmarks are estimates derived from public sources believed reliable but not independently verified. The recipient should verify all figures independently."
+}
