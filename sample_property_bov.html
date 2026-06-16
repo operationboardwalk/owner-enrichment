@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Broker Opinion of Value</title>
+
+<!-- Interactive libs (load from CDN; viewer needs internet for charts + map) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<style>
+  :root{
+    --navy:#0f2742; --navy-2:#16365c; --accent:#c9a14a; --accent-2:#e0c478;
+    --ink:#1f2a37; --muted:#697586; --line:#e3e8ef; --bg:#f6f8fb; --card:#ffffff;
+    --good:#2e7d52; --risk:#b4451f; --neutral:#5a6b85;
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       color:var(--ink);background:var(--bg);line-height:1.5}
+  h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.01em}
+  a{color:var(--navy)}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+
+  /* ---- Hero ---- */
+  .hero{background:linear-gradient(135deg,var(--navy),var(--navy-2));color:#fff;padding:38px 0 30px}
+  .hero .eyebrow{text-transform:uppercase;letter-spacing:.18em;font-size:12px;color:var(--accent-2);font-weight:700}
+  .hero h1{font-size:30px;margin:6px 0 4px}
+  .hero .addr{color:#cdd9ea;font-size:16px}
+  .hero-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-top:24px}
+  .stat{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:14px 16px}
+  .stat .k{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#aebfd6}
+  .stat .v{font-size:24px;font-weight:700;margin-top:3px}
+  .stat .s{font-size:12px;color:#9fb1cc;margin-top:2px}
+
+  /* ---- Nav ---- */
+  nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);
+      border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;gap:4px;overflow-x:auto;padding:0 20px}
+  nav button{flex:0 0 auto;background:none;border:none;padding:14px 14px;font-size:14px;font-weight:600;
+      color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+  nav button:hover{color:var(--ink)}
+  nav button.active{color:var(--navy);border-bottom-color:var(--accent)}
+
+  /* ---- Sections ---- */
+  section{padding:34px 0;border-bottom:1px solid var(--line)}
+  .sec-head{display:flex;align-items:baseline;gap:12px;margin-bottom:6px}
+  .sec-head h2{font-size:22px;color:var(--navy)}
+  .sec-head .num{font-size:13px;font-weight:700;color:var(--accent)}
+  .lead{color:var(--muted);max-width:760px;margin-bottom:20px}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+  .card .k{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+  .card .v{font-size:26px;font-weight:700;color:var(--navy);margin-top:4px}
+  .card .s{font-size:13px;color:var(--muted);margin-top:3px}
+
+  table{width:100%;border-collapse:collapse;font-size:14px;background:var(--card);
+        border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  th,td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--line)}
+  th{background:#f0f3f8;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr.subject{background:#fbf6e9}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .tag.subject{background:var(--accent);color:#3a2c06}
+
+  .chart-box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow);margin-top:16px}
+  .chart-box h3{font-size:14px;color:var(--ink);margin-bottom:10px}
+  .chart-holder{position:relative;height:300px}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:720px){.grid-2{grid-template-columns:1fr}}
+
+  #map{height:380px;border-radius:14px;border:1px solid var(--line);box-shadow:var(--shadow)}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:10px}
+  .dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:middle}
+
+  /* ---- Scores ---- */
+  .scores{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+  .score{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;text-align:center;box-shadow:var(--shadow)}
+  .ring{--p:0;width:96px;height:96px;border-radius:50%;margin:0 auto 10px;
+        background:conic-gradient(var(--accent) calc(var(--p)*3.6deg), #eef1f6 0);
+        display:grid;place-items:center}
+  .ring span{width:74px;height:74px;border-radius:50%;background:var(--card);display:grid;place-items:center;
+             font-size:24px;font-weight:700;color:var(--navy)}
+  .score .lab{font-weight:600}
+  .score .desc{font-size:12px;color:var(--muted);margin-top:2px}
+
+  /* ---- Highlights / regs ---- */
+  ul.hl{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+  ul.hl li{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--accent);
+           border-radius:10px;padding:14px 16px;box-shadow:var(--shadow)}
+  .reg{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow)}
+  .reg .rh{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .reg .rh h3{font-size:15px}
+  .pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px}
+  .pill.positive{background:#e4f3ea;color:var(--good)}
+  .pill.risk{background:#fbe9e2;color:var(--risk)}
+  .pill.neutral{background:#eef1f6;color:var(--neutral)}
+  .reg p{margin:0;color:var(--muted);font-size:14px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-size:13px;box-shadow:var(--shadow)}
+
+  /* ---- Calculator ---- */
+  .calc{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+  @media(max-width:720px){.calc{grid-template-columns:1fr}}
+  .ctrl{margin-bottom:18px}
+  .ctrl label{display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:6px}
+  .ctrl label b{color:var(--navy)}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .calc-out{background:linear-gradient(135deg,var(--navy),var(--navy-2));color:#fff;border-radius:14px;padding:22px;box-shadow:var(--shadow)}
+  .calc-out .big{font-size:40px;font-weight:800;letter-spacing:-.02em}
+  .calc-out .sub{color:#cdd9ea;font-size:13px}
+  .calc-out .row{display:flex;justify-content:space-between;padding:9px 0;border-top:1px solid rgba(255,255,255,.14);font-size:14px}
+  .calc-out .row span:last-child{font-weight:700}
+  .note{font-size:12px;color:var(--muted);margin-top:14px}
+
+  /* ---- Contact / footer ---- */
+  .contact{background:linear-gradient(135deg,var(--navy),var(--navy-2));color:#fff;border-radius:16px;padding:28px;
+           display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;box-shadow:var(--shadow)}
+  .contact h2{color:#fff;font-size:22px}
+  .contact .meta{color:#cdd9ea;font-size:14px;margin-top:6px}
+  .btn{background:var(--accent);color:#3a2c06;font-weight:700;text-decoration:none;padding:12px 22px;border-radius:10px;white-space:nowrap}
+  footer{padding:26px 0 40px;color:var(--muted);font-size:12px;text-align:center}
+  .disclaimer{max-width:820px;margin:14px auto 0;font-size:11px;color:#9aa6b6;line-height:1.5}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow" id="h-eyebrow">Broker Opinion of Value</div>
+    <h1 id="h-name">Property Name</h1>
+    <div class="addr" id="h-addr">Address</div>
+    <div class="hero-grid" id="h-stats"></div>
+  </div>
+</header>
+
+<nav>
+  <div class="wrap" id="nav-tabs"></div>
+</nav>
+
+<main class="wrap">
+
+  <section id="overview">
+    <div class="sec-head"><span class="num">01</span><h2>Property Snapshot</h2></div>
+    <p class="lead" id="ov-lead"></p>
+    <div class="cards" id="ov-cards"></div>
+    <div class="chart-box">
+      <h3>In-Place vs. Market Rent by Unit Type</h3>
+      <div class="chart-holder"><canvas id="chart-mix"></canvas></div>
+    </div>
+    <h3 style="margin:24px 0 10px;font-size:15px;color:var(--navy)">Unit Mix &amp; Rent Roll</h3>
+    <div style="overflow-x:auto"><table id="tbl-mix"></table></div>
+  </section>
+
+  <section id="rents">
+    <div class="sec-head"><span class="num">02</span><h2>Area Apartment Rents</h2></div>
+    <p class="lead" id="rent-lead"></p>
+    <div class="grid-2">
+      <div class="chart-box"><h3>Average Asking Rent — Subject vs. Comps</h3>
+        <div class="chart-holder"><canvas id="chart-rentcomp"></canvas></div></div>
+      <div class="chart-box" id="trend-box"><h3>Submarket Rent Trend</h3>
+        <div class="chart-holder"><canvas id="chart-trend"></canvas></div></div>
+    </div>
+    <h3 style="margin:24px 0 10px;font-size:15px;color:var(--navy)">Comparable Rentals</h3>
+    <div style="overflow-x:auto"><table id="tbl-rents"></table></div>
+  </section>
+
+  <section id="sales">
+    <div class="sec-head"><span class="num">03</span><h2>Sale Comparables</h2></div>
+    <p class="lead" id="sale-lead"></p>
+    <div class="cards" id="sale-cards"></div>
+    <div class="chart-box"><h3>Price per Unit — Recent Sales</h3>
+      <div class="chart-holder"><canvas id="chart-salecomp"></canvas></div></div>
+    <h3 style="margin:24px 0 10px;font-size:15px;color:var(--navy)">Comparable Sales</h3>
+    <div style="overflow-x:auto"><table id="tbl-sales"></table></div>
+  </section>
+
+  <section id="value">
+    <div class="sec-head"><span class="num">04</span><h2>Interactive Valuation</h2></div>
+    <p class="lead">Adjust the assumptions below to see how market cap rates and capturing the rent upside
+       affect estimated value. Defaults are derived from the sale comps and your current operations.</p>
+    <div class="calc">
+      <div>
+        <div class="ctrl">
+          <label>Market Cap Rate <b><span id="v-cap">5.0</span>%</b></label>
+          <input type="range" id="in-cap" min="3.5" max="8" step="0.05">
+        </div>
+        <div class="ctrl">
+          <label>Rent Upside Captured <b><span id="v-capture">100</span>%</b></label>
+          <input type="range" id="in-capture" min="0" max="100" step="5">
+        </div>
+        <div class="ctrl">
+          <label>NOI Margin on New Rent <b><span id="v-margin">65</span>%</b></label>
+          <input type="range" id="in-margin" min="40" max="90" step="1">
+        </div>
+        <p class="note">Stabilized NOI = current NOI + (monthly rent upside × 12 × % captured × NOI margin).
+           Estimated value = stabilized NOI ÷ market cap rate. For discussion only.</p>
+      </div>
+      <div class="calc-out">
+        <div class="sub">Estimated Value</div>
+        <div class="big" id="o-value">$0</div>
+        <div class="sub" id="o-perunit">$0 / unit</div>
+        <div class="row"><span>Current NOI</span><span id="o-noi">$0</span></div>
+        <div class="row"><span>Stabilized NOI</span><span id="o-snoi">$0</span></div>
+        <div class="row"><span>Monthly Rent Upside</span><span id="o-upside">$0</span></div>
+        <div class="row"><span>Implied Value Gain</span><span id="o-gain">$0</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="location">
+    <div class="sec-head"><span class="num">05</span><h2>Location &amp; Walkability</h2></div>
+    <p class="lead" id="loc-lead"></p>
+    <div class="scores" id="score-cards"></div>
+    <div id="map" style="margin-top:18px"></div>
+    <div class="legend">
+      <span><span class="dot" style="background:#c9a14a"></span>Subject Property</span>
+      <span><span class="dot" style="background:#16365c"></span>Rent Comps</span>
+      <span><span class="dot" style="background:#b4451f"></span>Sale Comps</span>
+    </div>
+  </section>
+
+  <section id="highlights">
+    <div class="sec-head"><span class="num">06</span><h2>Investment Highlights</h2></div>
+    <p class="lead">Property-specific drivers of value we'd lead with in a marketing campaign.</p>
+    <ul class="hl" id="hl-list"></ul>
+  </section>
+
+  <section id="neighborhood">
+    <div class="sec-head"><span class="num">07</span><h2>Neighborhood Developments &amp; Amenities</h2></div>
+    <div class="grid-2">
+      <div>
+        <h3 style="font-size:15px;color:var(--navy);margin-bottom:10px">Developments &amp; Drivers</h3>
+        <ul class="hl" id="dev-list"></ul>
+      </div>
+      <div>
+        <h3 style="font-size:15px;color:var(--navy);margin-bottom:10px">Nearby Amenities</h3>
+        <div class="chips" id="amen-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="regulatory">
+    <div class="sec-head"><span class="num">08</span><h2>Regulatory &amp; Risk Factors</h2></div>
+    <p class="lead">Rules and policies in this jurisdiction that influence value, rent growth, and buyer demand.</p>
+    <div id="reg-list"></div>
+  </section>
+
+  <section id="contact" style="border-bottom:none">
+    <div class="contact">
+      <div>
+        <h2 id="c-cta">Let's talk about your property.</h2>
+        <div class="meta" id="c-meta"></div>
+      </div>
+      <a class="btn" id="c-btn" href="#">Request a Full Valuation</a>
+    </div>
+    <p class="disclaimer" id="disclaimer"></p>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div id="f-brand"></div>
+    <div style="margin-top:4px" id="f-date"></div>
+  </div>
+</footer>
+
+<script>
+/* ===== Injected by generate_bov.py ===== */
+const BOV = {"report_title": "Broker Opinion of Value", "overview_summary": "The Magnolia is a well-located 24-unit garden-style community in a supply-constrained Oakland submarket. In-place rents sit roughly 22% below market, offering a clear, executable path to value through a light-to-moderate renovation and management program.", "rent_summary": "Renovated comps in the immediate area are achieving meaningful premiums over The Magnolia's in-place rents, validating the renovation thesis.", "sale_summary": "Recent sub-50-unit trades in the submarket support pricing in the $300K-$340K per unit range at cap rates in the high-4s to low-5s.", "location_summary": "Walkable, transit-rich location near BART and a dense retail corridor — a leading driver of renter demand and rent durability.", "contact_cta": "Curious what The Magnolia could trade for today?", "subject_property": {"name": "The Magnolia Apartments", "address": "2400 Telegraph Ave", "city": "Oakland", "state": "CA", "zip": "94612", "units": 24, "year_built": 1968, "building_sf": 19800, "current_noi": 330000, "unit_mix": [{"type": "Studio", "count": 6, "avg_sf": 480, "current_rent": 1450, "market_rent": 1850}, {"type": "1 Bed", "count": 12, "avg_sf": 640, "current_rent": 1850, "market_rent": 2300}, {"type": "2 Bed", "count": 6, "avg_sf": 920, "current_rent": 2450, "market_rent": 3050}]}, "rent_comps": [{"name": "The Hadley", "address": "2100 Telegraph Ave, Oakland, CA", "unit_type": "1 Bed", "avg_rent": 2350, "avg_sf": 660}, {"name": "Broadway Lofts", "address": "1900 Broadway, Oakland, CA", "unit_type": "1 Bed", "avg_rent": 2475, "avg_sf": 690}, {"name": "Grand Lake Flats", "address": "500 Grand Ave, Oakland, CA", "unit_type": "1 Bed", "avg_rent": 2225, "avg_sf": 625}, {"name": "Uptown Station", "address": "2330 Webster St, Oakland, CA", "unit_type": "1 Bed", "avg_rent": 2550, "avg_sf": 710}], "sale_comps": [{"name": "The Webster", "address": "1500 Webster St, Oakland, CA", "sale_date": "2025-11", "units": 28, "price": 9100000, "cap_rate": 5.1, "year_built": 1972}, {"name": "Adeline Court", "address": "3200 Adeline St, Oakland, CA", "sale_date": "2025-08", "units": 18, "price": 5760000, "cap_rate": 4.9, "year_built": 1965}, {"name": "Piedmont Place", "address": "4100 Piedmont Ave, Oakland, CA", "sale_date": "2025-06", "units": 32, "price": 10880000, "cap_rate": 5.3, "year_built": 1979}], "rent_trend": [{"period": "2021", "rent": 1980}, {"period": "2022", "rent": 2080}, {"period": "2023", "rent": 2160}, {"period": "2024", "rent": 2240}, {"period": "2025", "rent": 2320}], "investment_highlights": ["~22% embedded rent upside to market across the unit mix with no entitlement or major capital risk.", "Classic-to-renovated spread of $400-$600/unit demonstrated by directly competing comps.", "Irreplaceable infill location two blocks from the 19th St BART station.", "Sub-50-unit scale appeals to the deepest, most competitive private-capital buyer pool.", "Below-market expense load with opportunity to bill back utilities (RUBS)."], "neighborhood": {"developments": ["Uptown Oakland transit-oriented development continuing to add ground-floor retail and jobs.", "Telegraph Ave streetscape and bike-lane improvements completed, boosting walkability.", "Major employer expansions downtown supporting renter demand within walking distance."], "amenities": ["19th St BART (0.3 mi)", "Whole Foods", "Fox Theater", "Lake Merritt", "Uptown nightlife", "Kaiser Permanente", "Cafes & coffee", "AC Transit lines"]}, "regulations": [{"title": "Oakland Rent Adjustment Program", "sentiment": "neutral", "impact": "Annual allowable increases are CPI-indexed; banking of prior increases is permitted. Underwrite organic growth conservatively, but vacancy decontrol preserves the renovation upside on turnover."}, {"title": "California AB 1482 (Statewide Cap)", "sentiment": "neutral", "impact": "Caps increases at 5% + CPI (max 10%) on covered units. Provides a predictable growth floor and applies broadly across competing product."}, {"title": "Just Cause Eviction", "sentiment": "risk", "impact": "Relocation assistance may apply for owner move-in or substantial rehab. Factor turnover timing and relocation costs into any aggressive reposition plan."}, {"title": "Seismic / Soft-Story Ordinance", "sentiment": "risk", "impact": "Confirm the property's soft-story retrofit status; completed retrofits are a marketing positive and de-risk the asset for buyers."}], "walk_scores": {"walk": null, "transit": null, "bike": null}, "broker": {"name": "Hannah Maile", "company": "Operation Boardwalk", "phone": "(510) 555-0142", "email": "hannah.maile88@gmail.com", "license": "02XXXXXX"}, "disclaimer": "This Broker Opinion of Value is provided for informational and discussion purposes only and does not constitute an appraisal, an offer to buy or sell, or a guarantee of value. Figures are estimates derived from sources believed to be reliable but have not been independently verified. Recipients should perform their own due diligence.", "prepared_date": "June 16, 2026", "metrics": {"current_monthly_rent": 45600, "market_monthly_rent": 57000, "avg_inplace_rent": 1900, "avg_market_rent": 2375, "monthly_rent_upside": 11400, "rent_upside_pct": 25.0, "avg_comp_price_per_unit": 328333, "avg_comp_cap_rate": 5.1, "implied_value": 6470588, "implied_value_per_unit": 269608}};
+/* ======================================= */
+
+const $ = (id)=>document.getElementById(id);
+const fmt0 = (n)=> (n||n===0) ? "$"+Math.round(n).toLocaleString() : "—";
+const fmtK = (n)=>{ if(n==null) return "—"; if(Math.abs(n)>=1e6) return "$"+(n/1e6).toFixed(2)+"M"; if(Math.abs(n)>=1e3) return "$"+(n/1e3).toFixed(0)+"K"; return "$"+Math.round(n).toLocaleString(); };
+const num = (n,d=0)=> (n||n===0) ? Number(n).toLocaleString(undefined,{maximumFractionDigits:d}) : "—";
+
+/* ---------- Header ---------- */
+const sp = BOV.subject_property||{};
+$("h-eyebrow").textContent = (BOV.report_title||"Broker Opinion of Value");
+$("h-name").textContent = sp.name || "Subject Property";
+$("h-addr").textContent = [sp.address, sp.city, sp.state, sp.zip].filter(Boolean).join(", ");
+
+const m = BOV.metrics||{};
+const heroStats = [
+  {k:"Units", v:num(sp.units), s:sp.year_built?("Built "+sp.year_built):""},
+  {k:"Est. Value", v:fmtK(m.implied_value), s:m.avg_comp_cap_rate?("@ "+m.avg_comp_cap_rate.toFixed(2)+"% cap"):""},
+  {k:"Value / Unit", v:fmtK(m.implied_value_per_unit), s:"implied"},
+  {k:"Current NOI", v:fmtK(sp.current_noi), s:"in-place"},
+  {k:"Monthly Rent Upside", v:fmtK(m.monthly_rent_upside), s:m.rent_upside_pct?("+"+m.rent_upside_pct.toFixed(0)+"% to market"):""},
+];
+$("h-stats").innerHTML = heroStats.filter(x=>x.v!=="—").map(x=>
+  `<div class="stat"><div class="k">${x.k}</div><div class="v">${x.v}</div>${x.s?`<div class="s">${x.s}</div>`:""}</div>`).join("");
+
+/* ---------- Nav ---------- */
+const tabs = [
+  ["overview","Snapshot"],["rents","Area Rents"],["sales","Sale Comps"],
+  ["value","Valuation"],["location","Location"],["highlights","Highlights"],
+  ["neighborhood","Neighborhood"],["regulatory","Regulatory"],["contact","Contact"]
+];
+$("nav-tabs").innerHTML = tabs.map(([id,l],i)=>`<button data-t="${id}" class="${i===0?'active':''}">${l}</button>`).join("");
+const navBtns = [...document.querySelectorAll('nav button')];
+navBtns.forEach(b=> b.onclick=()=>{ document.getElementById(b.dataset.t).scrollIntoView({behavior:'smooth'}); });
+const secs = tabs.map(([id])=>$(id));
+const obs = new IntersectionObserver((es)=>{ es.forEach(e=>{ if(e.isIntersecting){
+  navBtns.forEach(b=>b.classList.toggle('active', b.dataset.t===e.target.id)); }});},{rootMargin:"-45% 0px -50% 0px"});
+secs.forEach(s=>s&&obs.observe(s));
+
+/* ---------- Overview ---------- */
+$("ov-lead").textContent = BOV.overview_summary ||
+  `${sp.name||"This asset"} is a ${num(sp.units)}-unit multifamily property${sp.year_built?` built in ${sp.year_built}`:""}${sp.city?` in ${sp.city}, ${sp.state||""}`:""}. The snapshot below summarizes in-place operations and the embedded upside to market rents.`;
+
+const ovCards = [
+  {k:"Total Units", v:num(sp.units)},
+  {k:"Year Built", v:sp.year_built?num(sp.year_built):"—"},
+  {k:"Building SF", v:sp.building_sf?num(sp.building_sf):"—"},
+  {k:"In-Place Rent / Mo", v:fmtK(m.current_monthly_rent), s:"actual"},
+  {k:"Market Rent / Mo", v:fmtK(m.market_monthly_rent), s:"at full market"},
+  {k:"Avg In-Place Rent", v:fmt0(m.avg_inplace_rent), s:"per unit / mo"},
+];
+$("ov-cards").innerHTML = ovCards.filter(x=>x.v!=="—").map(x=>
+  `<div class="card"><div class="k">${x.k}</div><div class="v">${x.v}</div>${x.s?`<div class="s">${x.s}</div>`:""}</div>`).join("");
+
+/* unit mix table */
+const mix = sp.unit_mix||[];
+if(mix.length){
+  let rows = mix.map(u=>{
+    const up = (u.market_rent&&u.current_rent)?(u.market_rent-u.current_rent):null;
+    return `<tr><td>${u.type||""}</td><td class="num">${num(u.count)}</td><td class="num">${u.avg_sf?num(u.avg_sf):"—"}</td>
+      <td class="num">${fmt0(u.current_rent)}</td><td class="num">${fmt0(u.market_rent)}</td>
+      <td class="num">${up!=null?("+"+fmt0(up)):"—"}</td></tr>`;
+  }).join("");
+  $("tbl-mix").innerHTML = `<thead><tr><th>Unit Type</th><th class="num">Units</th><th class="num">Avg SF</th>
+    <th class="num">In-Place Rent</th><th class="num">Market Rent</th><th class="num">Upside</th></tr></thead><tbody>${rows}</tbody>`;
+} else { $("tbl-mix").parentElement.style.display="none"; }
+
+/* ---------- Charts: helpers ---------- */
+const GOLD="#c9a14a", NAVY="#16365c", RED="#b4451f", GRID="#e3e8ef";
+Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+Chart.defaults.color = "#697586";
+const money = (v)=>"$"+Number(v).toLocaleString();
+
+/* mix chart */
+if(mix.length){
+  new Chart($("chart-mix"),{type:"bar",data:{labels:mix.map(u=>u.type),
+    datasets:[
+      {label:"In-Place",data:mix.map(u=>u.current_rent||0),backgroundColor:NAVY,borderRadius:5},
+      {label:"Market",data:mix.map(u=>u.market_rent||0),backgroundColor:GOLD,borderRadius:5}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{tooltip:{callbacks:{label:c=>c.dataset.label+": "+money(c.raw)}}},
+      scales:{y:{ticks:{callback:money},grid:{color:GRID}},x:{grid:{display:false}}}}});
+}
+
+/* ---------- Area Rents ---------- */
+$("rent-lead").textContent = BOV.rent_summary ||
+  "How the subject's rents compare to competing apartment communities in the immediate area.";
+const rc = BOV.rent_comps||[];
+const rentLabels = ["Subject (Mkt)", ...rc.map(c=>c.name||c.address||"Comp")];
+const rentVals = [m.avg_market_rent||m.avg_inplace_rent||0, ...rc.map(c=>c.avg_rent||0)];
+new Chart($("chart-rentcomp"),{type:"bar",data:{labels:rentLabels,
+  datasets:[{label:"Avg Rent",data:rentVals,
+    backgroundColor:rentLabels.map((_,i)=>i===0?GOLD:NAVY),borderRadius:5}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+    tooltip:{callbacks:{label:c=>money(c.raw)}}},
+    scales:{y:{ticks:{callback:money},grid:{color:GRID}},x:{grid:{display:false},ticks:{maxRotation:45,minRotation:0}}}}});
+
+/* trend */
+const trend = BOV.rent_trend||[];
+if(trend.length){
+  new Chart($("chart-trend"),{type:"line",data:{labels:trend.map(t=>t.period),
+    datasets:[{label:"Avg Submarket Rent",data:trend.map(t=>t.rent),
+      borderColor:GOLD,backgroundColor:"rgba(201,161,74,.15)",fill:true,tension:.3,pointRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>money(c.raw)}}},
+      scales:{y:{ticks:{callback:money},grid:{color:GRID}},x:{grid:{display:false}}}}});
+} else { $("trend-box").classList.add("hidden"); }
+
+/* rent comps table */
+if(rc.length){
+  let rows = rc.map(c=>`<tr><td>${c.name||"—"}</td><td>${c.address||"—"}</td><td>${c.unit_type||"—"}</td>
+    <td class="num">${fmt0(c.avg_rent)}</td><td class="num">${c.avg_sf?num(c.avg_sf):"—"}</td>
+    <td class="num">${(c.avg_rent&&c.avg_sf)?("$"+(c.avg_rent/c.avg_sf).toFixed(2)):"—"}</td></tr>`).join("");
+  $("tbl-rents").innerHTML = `<thead><tr><th>Community</th><th>Address</th><th>Unit Type</th>
+    <th class="num">Avg Rent</th><th class="num">Avg SF</th><th class="num">$/SF</th></tr></thead><tbody>${rows}</tbody>`;
+} else { $("tbl-rents").parentElement.style.display="none"; }
+
+/* ---------- Sale Comps ---------- */
+$("sale-lead").textContent = BOV.sale_summary ||
+  "Recent multifamily transactions used to triangulate value on a price-per-unit and cap-rate basis.";
+const sc = BOV.sale_comps||[];
+$("sale-cards").innerHTML = [
+  {k:"Avg Price / Unit",v:fmtK(m.avg_comp_price_per_unit)},
+  {k:"Avg Cap Rate",v:m.avg_comp_cap_rate?m.avg_comp_cap_rate.toFixed(2)+"%":"—"},
+  {k:"Comps Analyzed",v:num(sc.length)},
+  {k:"Implied Value",v:fmtK(m.implied_value),s:"current NOI ÷ avg cap"},
+].filter(x=>x.v!=="—").map(x=>`<div class="card"><div class="k">${x.k}</div><div class="v">${x.v}</div>${x.s?`<div class="s">${x.s}</div>`:""}</div>`).join("");
+
+if(sc.length){
+  const labels=[...sc.map(c=>c.name||c.address||"Comp")];
+  const ppu=sc.map(c=>c.price_per_unit||(c.price&&c.units?c.price/c.units:0));
+  new Chart($("chart-salecomp"),{type:"bar",data:{labels,
+    datasets:[{label:"$/Unit",data:ppu,backgroundColor:NAVY,borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>money(c.raw)+"/unit"}}},
+      scales:{y:{ticks:{callback:money},grid:{color:GRID}},x:{grid:{display:false},ticks:{maxRotation:45}}}}});
+
+  let rows = sc.map(c=>{const p=c.price_per_unit||(c.price&&c.units?c.price/c.units:null);
+    return `<tr><td>${c.name||"—"}</td><td>${c.address||"—"}</td><td>${c.sale_date||"—"}</td>
+    <td class="num">${num(c.units)}</td><td class="num">${fmtK(c.price)}</td>
+    <td class="num">${fmtK(p)}</td><td class="num">${c.cap_rate?c.cap_rate.toFixed(2)+"%":"—"}</td></tr>`;}).join("");
+  $("tbl-sales").innerHTML=`<thead><tr><th>Property</th><th>Address</th><th>Sold</th><th class="num">Units</th>
+    <th class="num">Price</th><th class="num">$/Unit</th><th class="num">Cap</th></tr></thead><tbody>${rows}</tbody>`;
+} else { $("tbl-sales").parentElement.style.display="none"; $("chart-salecomp").parentElement.parentElement.style.display="none"; }
+
+/* ---------- Valuation calculator ---------- */
+const baseCap = m.avg_comp_cap_rate || 5.0;
+const baseNOI = sp.current_noi || 0;
+const monthlyUpside = m.monthly_rent_upside || 0;
+$("in-cap").value = baseCap;
+function calc(){
+  const cap = +$("in-cap").value, capture = +$("in-capture").value, margin = +$("in-margin").value;
+  $("v-cap").textContent = cap.toFixed(2); $("v-capture").textContent = capture; $("v-margin").textContent = margin;
+  const addNOI = monthlyUpside*12*(capture/100)*(margin/100);
+  const sNOI = baseNOI + addNOI;
+  const val = cap>0 ? sNOI/(cap/100) : 0;
+  const baseVal = cap>0 ? baseNOI/(cap/100) : 0;
+  $("o-value").textContent = fmtK(val);
+  $("o-perunit").textContent = sp.units?fmtK(val/sp.units)+" / unit":"";
+  $("o-noi").textContent = fmt0(baseNOI);
+  $("o-snoi").textContent = fmt0(sNOI);
+  $("o-upside").textContent = fmt0(monthlyUpside);
+  $("o-gain").textContent = fmt0(val-baseVal);
+}
+["in-cap","in-capture","in-margin"].forEach(id=>$(id).addEventListener("input",calc));
+calc();
+
+/* ---------- Location & scores ---------- */
+$("loc-lead").textContent = BOV.location_summary ||
+  "Walkability and transit access are leading drivers of renter demand and rent premiums.";
+const ws = BOV.walk_scores||{};
+const scoreDefs = [
+  {key:"walk",lab:"Walk Score",desc:ws.walk_desc||"Daily errands"},
+  {key:"transit",lab:"Transit Score",desc:ws.transit_desc||"Public transit"},
+  {key:"bike",lab:"Bike Score",desc:ws.bike_desc||"Bikeability"},
+];
+const haveScores = scoreDefs.some(d=>ws[d.key]!=null);
+if(haveScores){
+  $("score-cards").innerHTML = scoreDefs.filter(d=>ws[d.key]!=null).map(d=>{
+    const p = Math.max(0,Math.min(100,ws[d.key]));
+    return `<div class="score"><div class="ring" style="--p:${p}"><span>${Math.round(ws[d.key])}</span></div>
+      <div class="lab">${d.lab}</div><div class="desc">${d.desc}</div></div>`;}).join("");
+} else {
+  $("score-cards").innerHTML = `<div class="card" style="grid-column:1/-1"><div class="s">Walk/Transit/Bike scores were not available for this address. Add a WALKSCORE_API_KEY and re-run, or enter them manually in the JSON under "walk_scores".</div></div>`;
+}
+
+/* ---------- Map ---------- */
+(function(){
+  const pts=[]; const subj = sp.lat&&sp.lng?{lat:sp.lat,lng:sp.lng}:null;
+  if(subj) pts.push(subj);
+  (rc||[]).forEach(c=>{if(c.lat&&c.lng)pts.push({lat:c.lat,lng:c.lng});});
+  (sc||[]).forEach(c=>{if(c.lat&&c.lng)pts.push({lat:c.lat,lng:c.lng});});
+  if(!pts.length){ $("map").style.display="none"; return; }
+  const map = L.map("map",{scrollWheelZoom:false});
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    {attribution:"&copy; OpenStreetMap &copy; CARTO",maxZoom:19}).addTo(map);
+  function mk(lat,lng,color,size){return L.circleMarker([lat,lng],
+    {radius:size,color:"#fff",weight:2,fillColor:color,fillOpacity:1});}
+  if(subj) mk(subj.lat,subj.lng,GOLD,11).addTo(map).bindPopup("<b>"+(sp.name||"Subject")+"</b><br>"+(sp.address||""));
+  (rc||[]).forEach(c=>{if(c.lat&&c.lng) mk(c.lat,c.lng,NAVY,8).addTo(map)
+    .bindPopup("<b>"+(c.name||"Rent comp")+"</b><br>"+(c.avg_rent?money(c.avg_rent)+"/mo":""));});
+  (sc||[]).forEach(c=>{if(c.lat&&c.lng) mk(c.lat,c.lng,RED,8).addTo(map)
+    .bindPopup("<b>"+(c.name||"Sale comp")+"</b><br>"+(c.price?fmtK(c.price):""));});
+  const grp = L.featureGroup(pts.map(p=>L.marker([p.lat,p.lng])));
+  map.fitBounds(grp.getBounds().pad(0.25));
+  if(pts.length===1) map.setView([pts[0].lat,pts[0].lng],14);
+})();
+
+/* ---------- Highlights ---------- */
+const hl = BOV.investment_highlights||[];
+$("hl-list").innerHTML = hl.length? hl.map(h=>`<li>${h}</li>`).join("")
+  : `<li>Add property-specific investment highlights in the JSON under "investment_highlights".</li>`;
+
+/* ---------- Neighborhood ---------- */
+const nb = BOV.neighborhood||{};
+const devs = nb.developments||[];
+$("dev-list").innerHTML = devs.length? devs.map(d=>`<li>${d}</li>`).join("")
+  : `<li>No developments listed.</li>`;
+const amen = nb.amenities||[];
+$("amen-list").innerHTML = amen.length? amen.map(a=>`<span class="chip">${a}</span>`).join("")
+  : `<span class="chip">No amenities listed.</span>`;
+
+/* ---------- Regulatory ---------- */
+const regs = BOV.regulations||[];
+$("reg-list").innerHTML = regs.length? regs.map(r=>{
+  const s=(r.sentiment||"neutral").toLowerCase();
+  const lab = s==="positive"?"Tailwind":s==="risk"?"Watch":"Neutral";
+  return `<div class="reg"><div class="rh"><h3>${r.title||""}</h3><span class="pill ${s}">${lab}</span></div>
+    <p>${r.impact||""}</p></div>`;}).join("")
+  : `<div class="reg"><p>No regulatory factors listed. Add them in the JSON under "regulations".</p></div>`;
+
+/* ---------- Contact / footer ---------- */
+const br = BOV.broker||{};
+if(BOV.contact_cta) $("c-cta").textContent = BOV.contact_cta;
+$("c-meta").innerHTML = [br.name,br.company,br.phone,br.email,br.license?("CalDRE/Lic #"+br.license):""].filter(Boolean).join(" &nbsp;•&nbsp; ");
+if(br.email){ $("c-btn").href = "mailto:"+br.email+"?subject="+encodeURIComponent("BOV — "+(sp.name||sp.address||"My Property")); }
+$("disclaimer").textContent = BOV.disclaimer ||
+  "This Broker Opinion of Value is provided for informational and discussion purposes only and does not constitute an appraisal, an offer, or a guarantee of value. Figures are estimates derived from sources believed reliable but not independently verified. Recipients should perform their own due diligence.";
+$("f-brand").textContent = (br.company||"")+(br.company?" — ":"")+"Broker Opinion of Value";
+$("f-date").textContent = "Prepared "+(BOV.prepared_date||"")+(br.name?(" by "+br.name):"");
+document.title = (sp.name||"BOV")+" — Broker Opinion of Value";
+</script>
+</body>
+</html>

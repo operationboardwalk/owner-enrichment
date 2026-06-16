@@ -1,0 +1,93 @@
+{
+  "report_title": "Broker Opinion of Value",
+  "overview_summary": "The Magnolia is a well-located 24-unit garden-style community in a supply-constrained Oakland submarket. In-place rents sit roughly 22% below market, offering a clear, executable path to value through a light-to-moderate renovation and management program.",
+  "rent_summary": "Renovated comps in the immediate area are achieving meaningful premiums over The Magnolia's in-place rents, validating the renovation thesis.",
+  "sale_summary": "Recent sub-50-unit trades in the submarket support pricing in the $300K-$340K per unit range at cap rates in the high-4s to low-5s.",
+  "location_summary": "Walkable, transit-rich location near BART and a dense retail corridor — a leading driver of renter demand and rent durability.",
+  "contact_cta": "Curious what The Magnolia could trade for today?",
+
+  "subject_property": {
+    "name": "The Magnolia Apartments",
+    "address": "2400 Telegraph Ave",
+    "city": "Oakland",
+    "state": "CA",
+    "zip": "94612",
+    "units": 24,
+    "year_built": 1968,
+    "building_sf": 19800,
+    "current_noi": 330000,
+    "unit_mix": [
+      { "type": "Studio", "count": 6,  "avg_sf": 480, "current_rent": 1450, "market_rent": 1850 },
+      { "type": "1 Bed",  "count": 12, "avg_sf": 640, "current_rent": 1850, "market_rent": 2300 },
+      { "type": "2 Bed",  "count": 6,  "avg_sf": 920, "current_rent": 2450, "market_rent": 3050 }
+    ]
+  },
+
+  "rent_comps": [
+    { "name": "The Hadley",      "address": "2100 Telegraph Ave, Oakland, CA",  "unit_type": "1 Bed", "avg_rent": 2350, "avg_sf": 660 },
+    { "name": "Broadway Lofts",  "address": "1900 Broadway, Oakland, CA",       "unit_type": "1 Bed", "avg_rent": 2475, "avg_sf": 690 },
+    { "name": "Grand Lake Flats", "address": "500 Grand Ave, Oakland, CA",      "unit_type": "1 Bed", "avg_rent": 2225, "avg_sf": 625 },
+    { "name": "Uptown Station",  "address": "2330 Webster St, Oakland, CA",     "unit_type": "1 Bed", "avg_rent": 2550, "avg_sf": 710 }
+  ],
+
+  "sale_comps": [
+    { "name": "The Webster",     "address": "1500 Webster St, Oakland, CA",   "sale_date": "2025-11", "units": 28, "price": 9100000,  "cap_rate": 5.1, "year_built": 1972 },
+    { "name": "Adeline Court",   "address": "3200 Adeline St, Oakland, CA",   "sale_date": "2025-08", "units": 18, "price": 5760000,  "cap_rate": 4.9, "year_built": 1965 },
+    { "name": "Piedmont Place",  "address": "4100 Piedmont Ave, Oakland, CA", "sale_date": "2025-06", "units": 32, "price": 10880000, "cap_rate": 5.3, "year_built": 1979 }
+  ],
+
+  "rent_trend": [
+    { "period": "2021", "rent": 1980 },
+    { "period": "2022", "rent": 2080 },
+    { "period": "2023", "rent": 2160 },
+    { "period": "2024", "rent": 2240 },
+    { "period": "2025", "rent": 2320 }
+  ],
+
+  "investment_highlights": [
+    "~22% embedded rent upside to market across the unit mix with no entitlement or major capital risk.",
+    "Classic-to-renovated spread of $400-$600/unit demonstrated by directly competing comps.",
+    "Irreplaceable infill location two blocks from the 19th St BART station.",
+    "Sub-50-unit scale appeals to the deepest, most competitive private-capital buyer pool.",
+    "Below-market expense load with opportunity to bill back utilities (RUBS)."
+  ],
+
+  "neighborhood": {
+    "developments": [
+      "Uptown Oakland transit-oriented development continuing to add ground-floor retail and jobs.",
+      "Telegraph Ave streetscape and bike-lane improvements completed, boosting walkability.",
+      "Major employer expansions downtown supporting renter demand within walking distance."
+    ],
+    "amenities": [
+      "19th St BART (0.3 mi)", "Whole Foods", "Fox Theater", "Lake Merritt",
+      "Uptown nightlife", "Kaiser Permanente", "Cafes & coffee", "AC Transit lines"
+    ]
+  },
+
+  "regulations": [
+    { "title": "Oakland Rent Adjustment Program", "sentiment": "neutral",
+      "impact": "Annual allowable increases are CPI-indexed; banking of prior increases is permitted. Underwrite organic growth conservatively, but vacancy decontrol preserves the renovation upside on turnover." },
+    { "title": "California AB 1482 (Statewide Cap)", "sentiment": "neutral",
+      "impact": "Caps increases at 5% + CPI (max 10%) on covered units. Provides a predictable growth floor and applies broadly across competing product." },
+    { "title": "Just Cause Eviction", "sentiment": "risk",
+      "impact": "Relocation assistance may apply for owner move-in or substantial rehab. Factor turnover timing and relocation costs into any aggressive reposition plan." },
+    { "title": "Seismic / Soft-Story Ordinance", "sentiment": "risk",
+      "impact": "Confirm the property's soft-story retrofit status; completed retrofits are a marketing positive and de-risk the asset for buyers." }
+  ],
+
+  "walk_scores": {
+    "walk": null,
+    "transit": null,
+    "bike": null
+  },
+
+  "broker": {
+    "name": "Hannah Maile",
+    "company": "Operation Boardwalk",
+    "phone": "(510) 555-0142",
+    "email": "hannah.maile88@gmail.com",
+    "license": "02XXXXXX"
+  },
+
+  "disclaimer": "This Broker Opinion of Value is provided for informational and discussion purposes only and does not constitute an appraisal, an offer to buy or sell, or a guarantee of value. Figures are estimates derived from sources believed to be reliable but have not been independently verified. Recipients should perform their own due diligence."
+}
